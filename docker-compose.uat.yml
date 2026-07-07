@@ -1,0 +1,27 @@
+# ==============================================================================
+# docker-compose.uat.yml  (UAT / staging)
+# ------------------------------------------------------------------------------
+# ไว้ทำอะไร : deploy ขึ้น environment UAT/staging ไว้ให้ทีม/ลูกค้าทดสอบ
+# ใช้ตอนไหน : ก่อนขึ้น production จริง อยากให้คนอื่นเข้ามาลองใช้บน server กลาง
+# image     : wanix-client:uat   (เปิดพอร์ต 3001 กันชนกับ prod ที่ 3000)
+# คำสั่ง    : docker compose -f docker-compose.uat.yml up -d --build
+# ==============================================================================
+services:
+  app:
+    build:
+      context: .
+      target: runner
+    image: wanix-client:uat
+    container_name: wanix-client-uat
+    ports:
+      - "3001:3000"             # เข้าใช้งานที่ host :3001
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

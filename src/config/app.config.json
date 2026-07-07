@@ -1,0 +1,24 @@
+{
+  "name": "Wanix Client",
+  "shortName": "Wanix",
+  "description": "Wanix client application template",
+  "defaultLocale": "en",
+  "version": "0.1.0",
+  "api": {
+    "baseUrl": "http://localhost:8080/api",
+    "timeoutMs": 15000
+  },
+  "auth": {
+    "tokenStorageKey": "wanix.auth.token",
+    "userStorageKey": "wanix.auth.user",
+    "demo": {
+      "username": "admin@wanix.dev",
+      "password": "password"
+    }
+  },
+  "routes": {
+    "login": "/login",
+    "home": "/home",
+    "afterLogin": "/home"
+  }
+}

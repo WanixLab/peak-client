@@ -1,0 +1,29 @@
+# ==============================================================================
+# docker-compose.yml  (ไฟล์ default ของ docker compose)
+# ------------------------------------------------------------------------------
+# ไว้ทำอะไร : build image โปรดักชันจริง แล้วรันบนเครื่องตัวเอง
+# ใช้ตอนไหน : ตอนอยากทดสอบว่า production build (Dockerfile target `runner`)
+#             ทำงานถูกต้องบนเครื่อง dev ก่อนเอาขึ้น server จริง
+# image     : wanix-client:latest
+# คำสั่ง    : docker compose up --build
+# ==============================================================================
+services:
+  app:
+    build:
+      context: .
+      target: runner            # ใช้ stage โปรดักชันจาก Dockerfile (standalone)
+    image: wanix-client:latest
+    container_name: wanix-client
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      # อ่านจาก env ของเครื่อง ถ้าไม่ตั้งจะ fallback เป็น localhost
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
+    restart: unless-stopped
+    healthcheck:                # เช็คว่าแอปตอบสนอง (ใช้ตัดสิน service_healthy)
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

@@ -1,0 +1,29 @@
+# ==============================================================================
+# docker-compose.prod.yml  (production จริง)
+# ------------------------------------------------------------------------------
+# ไว้ทำอะไร : deploy ขึ้น server production จริง
+# ใช้ตอนไหน : ตอนขึ้นใช้งานจริง — restart: always และ "ต้อง" กำหนด
+#             NEXT_PUBLIC_API_URL เอง (ไม่มี fallback เพื่อกันลืมตั้งค่า)
+# image     : wanix-client:prod
+# คำสั่ง    : NEXT_PUBLIC_API_URL=https://api.example.com \
+#               docker compose -f docker-compose.prod.yml up -d --build
+# ==============================================================================
+services:
+  app:
+    build:
+      context: .
+      target: runner
+    image: wanix-client:prod
+    container_name: wanix-client-prod
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}   # ไม่มี default -> ต้องตั้งเอง
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

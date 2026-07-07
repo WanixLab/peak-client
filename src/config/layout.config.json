@@ -1,0 +1,7 @@
+{
+  "drawerWidth": 260,
+  "miniDrawerWidth": 72,
+  "headerHeight": 64,
+  "permanentDrawerBreakpoint": "md",
+  "sidebarDefaultOpen": true
+}

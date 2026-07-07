@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.github
+npm-debug.log*
+Dockerfile
+docker-compose*.yml
+.dockerignore
+.env*
+coverage
+test-results
+playwright-report
+blob-report
+README.md

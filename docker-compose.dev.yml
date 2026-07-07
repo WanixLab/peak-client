@@ -1,0 +1,23 @@
+# ==============================================================================
+# docker-compose.dev.yml  (โหมดพัฒนา)
+# ------------------------------------------------------------------------------
+# ไว้ทำอะไร : รัน dev server พร้อม hot reload โดย mount โค้ดจากเครื่องเข้าไป
+# ใช้ตอนไหน : ระหว่างพัฒนา อยากแก้โค้ดแล้วเห็นผลทันทีโดยไม่ต้อง build image
+# หมายเหตุ  : โหมดนี้ "ไม่ build" เป็น image ของแอป แต่รันโค้ดตรง ๆ บน node
+#             image เลยเป็น node:22-alpine (ตัว runtime) ไม่ใช่ wanix-client:*
+# คำสั่ง    : docker compose -f docker-compose.dev.yml up
+# ==============================================================================
+services:
+  app:
+    image: node:22-alpine
+    container_name: wanix-client-dev
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev"
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"   # ให้ file watcher ทำงานผ่าน volume บน Docker
+    volumes:
+      - .:/app                    # mount โค้ดจริงเข้าไป -> แก้แล้ว reload ทันที
+      - /app/node_modules         # กัน node_modules ในเครื่องทับของใน container

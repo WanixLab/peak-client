@@ -1,0 +1,75 @@
+{
+  "items": [
+    {
+      "id": "home",
+      "title": "Home",
+      "path": "/home",
+      "icon": "Home",
+      "section": "Overview"
+    },
+    {
+      "id": "dashboard",
+      "title": "Dashboard",
+      "path": "/dashboard",
+      "icon": "Dashboard",
+      "section": "Overview"
+    },
+    {
+      "id": "management",
+      "title": "Management",
+      "icon": "ManageAccounts",
+      "section": "Management",
+      "children": [
+        {
+          "id": "users",
+          "title": "Users",
+          "path": "/management/users",
+          "icon": "People",
+          "roles": [
+            "admin"
+          ]
+        },
+        {
+          "id": "documents",
+          "title": "Documents",
+          "path": "/management/documents",
+          "icon": "Description"
+        }
+      ]
+    },
+    {
+      "id": "reports",
+      "title": "Reports",
+      "icon": "Assessment",
+      "section": "Reports",
+      "children": [
+        {
+          "id": "reports-summary",
+          "title": "Summary",
+          "path": "/reports/summary",
+          "icon": "Summarize"
+        },
+        {
+          "id": "reports-activity",
+          "title": "Activity",
+          "path": "/reports/activity",
+          "icon": "Timeline"
+        }
+      ]
+    },
+    {
+      "id": "playground-alerts",
+      "title": "Alerts Demo",
+      "path": "/playground/alerts",
+      "icon": "NotificationsActive",
+      "section": "System"
+    },
+    {
+      "id": "settings",
+      "title": "Settings",
+      "path": "/settings",
+      "icon": "Settings",
+      "section": "System"
+    }
+  ]
+}
