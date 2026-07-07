@@ -10,6 +10,23 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import RateReviewIcon from '@mui/icons-material/RateReview';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
+import HistoryIcon from '@mui/icons-material/History';
+import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
+import GradeIcon from '@mui/icons-material/Grade';
+import ScoreIcon from '@mui/icons-material/Score';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import DynamicFormIcon from '@mui/icons-material/DynamicForm';
+import BuildIcon from '@mui/icons-material/Build';
+import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import RuleIcon from '@mui/icons-material/Rule';
+import StorageIcon from '@mui/icons-material/Storage';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
 
 import appConfigJson from './app.config.json';
 import layoutConfigJson from './layout.config.json';
@@ -62,6 +79,23 @@ const iconMap: Record<string, SvgIconComponent> = {
   Summarize: SummarizeIcon,
   Timeline: TimelineIcon,
   NotificationsActive: NotificationsActiveIcon,
+  RateReview: RateReviewIcon,
+  AssignmentTurnedIn: AssignmentTurnedInIcon,
+  History: HistoryIcon,
+  AssignmentInd: AssignmentIndIcon,
+  Grade: GradeIcon,
+  Score: ScoreIcon,
+  FileDownload: FileDownloadIcon,
+  DynamicForm: DynamicFormIcon,
+  Build: BuildIcon,
+  LibraryBooks: LibraryBooksIcon,
+  Rule: RuleIcon,
+  Storage: StorageIcon,
+  AccountTree: AccountTreeIcon,
+  CalendarMonth: CalendarMonthIcon,
+  MenuBook: MenuBookIcon,
+  AdminPanelSettings: AdminPanelSettingsIcon,
+  FactCheck: FactCheckIcon,
 };
 
 /** A single navigation entry, with its icon resolved to a component. */

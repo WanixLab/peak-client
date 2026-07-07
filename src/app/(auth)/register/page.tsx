@@ -77,7 +77,7 @@ export default function RegisterPage() {
         <Stack spacing={1} sx={{ mb: 3, textAlign: 'center', alignItems: 'center' }}>
           <Box
             component="img"
-            src="/wanix-icon.svg"
+            src="/PEAK-icon.png"
             alt={appConfig.name}
             sx={{ width: 64, height: 64, mb: 1 }}
           />

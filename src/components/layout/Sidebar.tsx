@@ -45,7 +45,7 @@ function Brand({ mini }: { mini: boolean }) {
     >
       <Box
         component="img"
-        src="/wanix-icon.svg"
+        src="/PEAK-icon.png"
         alt=""
         sx={{ width: 36, height: 36, flexShrink: 0, maxWidth: 'none' }}
       />

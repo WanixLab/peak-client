@@ -1,7 +1,7 @@
 {
-  "name": "Wanix Client",
-  "shortName": "Wanix",
-  "description": "Wanix client application template",
+  "name": "PEAK – Project Evaluation & Assessment Kit",
+  "shortName": "PEAK",
+  "description": "PEAK – Project Evaluation & Assessment Kit",
   "defaultLocale": "en",
   "version": "0.1.0",
   "api": {

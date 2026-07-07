@@ -1,13 +1,6 @@
 {
   "items": [
     {
-      "id": "home",
-      "title": "Home",
-      "path": "/home",
-      "icon": "Home",
-      "section": "Overview"
-    },
-    {
       "id": "dashboard",
       "title": "Dashboard",
       "path": "/dashboard",
@@ -15,61 +8,146 @@
       "section": "Overview"
     },
     {
-      "id": "management",
-      "title": "Management",
+      "id": "evaluation",
+      "title": "Evaluation",
+      "icon": "RateReview",
+      "section": "Evaluation",
+      "children": [
+        {
+          "id": "evaluation-tasks",
+          "title": "My Evaluations",
+          "path": "/evaluation/tasks",
+          "icon": "AssignmentTurnedIn"
+        },
+        {
+          "id": "evaluation-history",
+          "title": "Evaluation History",
+          "path": "/evaluation/history",
+          "icon": "History"
+        }
+      ]
+    },
+    {
+      "id": "assignment",
+      "title": "Assignment",
+      "path": "/assignment",
+      "icon": "AssignmentInd",
+      "section": "Evaluation"
+    },
+    {
+      "id": "scores",
+      "title": "Scores",
+      "icon": "Grade",
+      "section": "Results",
+      "children": [
+        {
+          "id": "scores-view",
+          "title": "View Scores",
+          "path": "/scores/view",
+          "icon": "Score"
+        },
+        {
+          "id": "scores-export",
+          "title": "Export Report",
+          "path": "/scores/export",
+          "icon": "FileDownload"
+        }
+      ]
+    },
+    {
+      "id": "form-management",
+      "title": "Form Management",
+      "icon": "DynamicForm",
+      "section": "Form",
+      "children": [
+        {
+          "id": "form-builder",
+          "title": "Form Builder",
+          "path": "/forms/builder",
+          "icon": "Build"
+        },
+        {
+          "id": "form-templates",
+          "title": "Template Library",
+          "path": "/forms/templates",
+          "icon": "LibraryBooks"
+        },
+        {
+          "id": "form-rubric",
+          "title": "Rubric Config",
+          "path": "/forms/rubric",
+          "icon": "Rule"
+        }
+      ]
+    },
+    {
+      "id": "master-data",
+      "title": "Master Data",
+      "icon": "Storage",
+      "section": "Master Data",
+      "children": [
+        {
+          "id": "organization",
+          "title": "Organization Structure",
+          "path": "/master-data/organization",
+          "icon": "AccountTree"
+        },
+        {
+          "id": "academic-term",
+          "title": "Academic Year / Semester",
+          "path": "/master-data/academic-term",
+          "icon": "CalendarMonth"
+        },
+        {
+          "id": "subjects",
+          "title": "Subjects",
+          "path": "/master-data/subjects",
+          "icon": "MenuBook"
+        }
+      ]
+    },
+    {
+      "id": "user-management",
+      "title": "User Management",
       "icon": "ManageAccounts",
-      "section": "Management",
+      "section": "Administration",
       "children": [
         {
-          "id": "users",
-          "title": "Users",
-          "path": "/management/users",
+          "id": "members",
+          "title": "Members",
+          "path": "/users/members",
           "icon": "People",
-          "roles": [
-            "admin"
-          ]
+          "roles": ["admin"]
         },
         {
-          "id": "documents",
-          "title": "Documents",
-          "path": "/management/documents",
-          "icon": "Description"
+          "id": "group-permission",
+          "title": "Group Permission",
+          "path": "/users/group-permission",
+          "icon": "AdminPanelSettings",
+          "roles": ["admin"]
         }
       ]
     },
     {
-      "id": "reports",
-      "title": "Reports",
-      "icon": "Assessment",
-      "section": "Reports",
+      "id": "system",
+      "title": "System",
+      "icon": "Settings",
+      "section": "System",
       "children": [
         {
-          "id": "reports-summary",
-          "title": "Summary",
-          "path": "/reports/summary",
-          "icon": "Summarize"
+          "id": "audit-log",
+          "title": "Audit Log",
+          "path": "/system/audit-log",
+          "icon": "FactCheck",
+          "roles": ["admin"]
         },
         {
-          "id": "reports-activity",
-          "title": "Activity",
-          "path": "/reports/activity",
-          "icon": "Timeline"
+          "id": "notification-settings",
+          "title": "Notification Settings",
+          "path": "/system/notifications",
+          "icon": "NotificationsActive"
         }
       ]
-    },
-    {
-      "id": "playground-alerts",
-      "title": "Alerts Demo",
-      "path": "/playground/alerts",
-      "icon": "NotificationsActive",
-      "section": "System"
-    },
-    {
-      "id": "settings",
-      "title": "Settings",
-      "path": "/settings",
-      "icon": "Settings",
-      "section": "System"
     }
   ]
 }

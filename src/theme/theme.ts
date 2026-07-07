@@ -1,7 +1,7 @@
 import { createTheme } from '@mui/material/styles';
 
 /** Brand colors used across both color schemes. */
-const PRIMARY = '#2463EB';
+const PRIMARY = '#6D28D9';
 const SECONDARY = '#7c3aed';
 
 /**

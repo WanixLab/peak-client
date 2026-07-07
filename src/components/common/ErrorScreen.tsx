@@ -34,7 +34,7 @@ export default function ErrorScreen({
       <Stack spacing={2} sx={{ alignItems: 'center', maxWidth: 480 }}>
         <Box
           component="img"
-          src="/wanix-icon.svg"
+          src="/PEAK-icon.png"
           alt=""
           sx={{ width: 56, height: 56, mb: 1, maxWidth: 'none' }}
         />
