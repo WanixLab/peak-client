@@ -1,6 +1,13 @@
 {
   "items": [
     {
+      "id": "home",
+      "title": "Home",
+      "path": "/home",
+      "icon": "home",
+      "section": "Overview"
+    },
+    {
       "id": "dashboard",
       "title": "Dashboard",
       "path": "/dashboard",

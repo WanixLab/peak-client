@@ -95,13 +95,26 @@ export default function Sidebar() {
     [isActive],
   );
 
-  // Which submenus are expanded (desktop). A submenu holding the active route
-  // is open by default; `overrides` records any manual toggle by the user, so
-  // no effect is needed to sync open state with navigation.
-  const [overrides, setOverrides] = React.useState<Record<string, boolean>>({});
-  const isOpen = (item: MenuItem) => overrides[item.id] ?? isParentActive(item);
-  const setOpen = (id: string, next: boolean) =>
-    setOverrides((prev) => ({ ...prev, [id]: next }));
+  // The parent whose submenu holds the active route (or null when the active
+  // route is a top-level item). This is the submenu expanded by default.
+  const activeParentId = groups.flatMap((group) => group.items).find(isParentActive)?.id ?? null;
+
+  // Accordion behaviour (desktop): only one submenu is expanded at a time.
+  // `openId` is the currently-open parent, or null when all are collapsed;
+  // opening one closes any other. It re-syncs to the active section whenever
+  // navigation moves into a different one — adjusted during render (React's
+  // recommended alternative to an effect), so no effect is needed to keep it in
+  // step with the route.
+  const [openId, setOpenId] = React.useState<string | null>(activeParentId);
+  const [syncedParentId, setSyncedParentId] = React.useState<string | null>(activeParentId);
+  if (activeParentId !== syncedParentId) {
+    setSyncedParentId(activeParentId);
+    setOpenId(activeParentId);
+  }
+  const isOpen = (item: MenuItem) => openId === item.id;
+  // Toggle a parent: collapse it if already open, otherwise open it (which
+  // closes whichever submenu was open before).
+  const toggleParent = (id: string) => setOpenId((cur) => (cur === id ? null : id));
 
   // Flyout submenu shown for a parent while the rail is collapsed to icons.
   const [flyout, setFlyout] = React.useState<{ anchor: HTMLElement; item: MenuItem } | null>(null);
@@ -173,7 +186,7 @@ export default function Sidebar() {
         >
           <ListItemButton
             onClick={(e) =>
-              mini ? setFlyout({ anchor: e.currentTarget, item }) : setOpen(item.id, !open)
+              mini ? setFlyout({ anchor: e.currentTarget, item }) : toggleParent(item.id)
             }
             selected={mini && parentActive}
             sx={{
