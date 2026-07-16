@@ -27,6 +27,8 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
+import WidgetsIcon from '@mui/icons-material/Widgets';
+import PaletteIcon from '@mui/icons-material/Palette';
 
 import appConfigJson from './app.config.json';
 import layoutConfigJson from './layout.config.json';
@@ -96,6 +98,8 @@ const iconMap: Record<string, SvgIconComponent> = {
   MenuBook: MenuBookIcon,
   AdminPanelSettings: AdminPanelSettingsIcon,
   FactCheck: FactCheckIcon,
+  Widgets: WidgetsIcon,
+  Palette: PaletteIcon,
 };
 
 /** A single navigation entry, with its icon resolved to a component. */

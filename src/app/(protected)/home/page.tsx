@@ -7,7 +7,6 @@ import {
   Box,
   Button,
   Card,
-  CardActionArea,
   CardContent,
   Chip,
   Divider,
@@ -16,7 +15,6 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
@@ -24,10 +22,10 @@ import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import { useAppSelector } from '@/redux/hooks';
 import { appConfig } from '@/config';
+import QuickActions from '@/components/common/QuickActions';
 import {
   getHomeContent,
   getRoleMeta,
-  type HomeAction,
   type HomeActivity,
   type HomeStat,
   type Trend,
@@ -102,30 +100,6 @@ function StatCard({ stat }: { stat: HomeStat }) {
           </Stack>
         )}
       </CardContent>
-    </Card>
-  );
-}
-
-/** A quick-action shortcut linking to a page the current role can open. */
-function QuickAction({ action }: { action: HomeAction }) {
-  return (
-    <Card sx={{ height: '100%', transition: 'border-color .2s, box-shadow .2s' }}>
-      <CardActionArea component={Link} href={action.href} sx={{ height: '100%', borderRadius: 'inherit' }}>
-        <CardContent>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <IconBadge icon={action.icon} color={action.color} />
-            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-              <Typography sx={{ fontWeight: 600 }} noWrap>
-                {action.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" noWrap>
-                {action.description}
-              </Typography>
-            </Box>
-            <ArrowForwardIcon fontSize="small" sx={{ color: 'text.secondary', flexShrink: 0 }} />
-          </Stack>
-        </CardContent>
-      </CardActionArea>
     </Card>
   );
 }
@@ -250,18 +224,7 @@ export default function HomePage() {
       {/* Quick actions + recent activity. */}
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 8 }}>
-          <Stack spacing={1.5}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Quick actions
-            </Typography>
-            <Grid container spacing={2}>
-              {content.actions.map((action) => (
-                <Grid key={action.id} size={{ xs: 12, sm: 6 }}>
-                  <QuickAction action={action} />
-                </Grid>
-              ))}
-            </Grid>
-          </Stack>
+          <QuickActions actions={content.actions} />
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>

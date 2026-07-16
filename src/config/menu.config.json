@@ -155,6 +155,26 @@
           "icon": "NotificationsActive"
         }
       ]
+    },
+    {
+      "id": "playground",
+      "title": "Playground",
+      "icon": "Widgets",
+      "section": "Developer",
+      "children": [
+        {
+          "id": "playground-components",
+          "title": "Components",
+          "path": "/playground/components",
+          "icon": "Widgets"
+        },
+        {
+          "id": "playground-alerts",
+          "title": "Alerts",
+          "path": "/playground/alerts",
+          "icon": "NotificationsActive"
+        }
+      ]
     }
   ]
 }

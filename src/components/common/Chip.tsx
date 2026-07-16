@@ -12,10 +12,11 @@ import CloseIcon from '@mui/icons-material/Close';
  *
  * - `outlined` — coloured border + text on a transparent surface, rounded rect.
  * - `soft`     — faded tint fill + coloured text, hairline tinted border.
+ * - `plain`    — the `soft` tint fill + coloured text, but with no border.
  * - `solid`    — full colour fill with contrast text.
  * - `smooth`   — pill-shaped with a soft top-to-bottom colour fade + border.
  */
-export type ChipVariant = 'outlined' | 'soft' | 'solid' | 'smooth';
+export type ChipVariant = 'outlined' | 'soft' | 'plain' | 'solid' | 'smooth';
 export type ChipSize = 'sm' | 'md';
 
 export interface ChipProps {
@@ -98,6 +99,13 @@ export default function Chip({
       border = alpha(accent, 0.4);
       fg = accent;
       hoverBg = `linear-gradient(180deg, ${alpha(accent, 0.16)}, ${alpha(accent, 0.26)})`;
+      break;
+    case 'plain':
+      // Same tint fill as `soft`, but borderless.
+      bg = alpha(accent, selected ? 0.22 : 0.12);
+      border = 'transparent';
+      fg = accent;
+      hoverBg = alpha(accent, 0.2);
       break;
     case 'soft':
     default:

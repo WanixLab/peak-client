@@ -26,16 +26,8 @@ import EditNoteIcon from '@mui/icons-material/EditNote';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import ReplayIcon from '@mui/icons-material/Replay';
 import PeopleIcon from '@mui/icons-material/People';
-import PushPinIcon from '@mui/icons-material/PushPin';
-import ShieldIcon from '@mui/icons-material/Shield';
-import BoltIcon from '@mui/icons-material/Bolt';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
-import StarIcon from '@mui/icons-material/Star';
-import BugReportIcon from '@mui/icons-material/BugReport';
 import PageHeader from '@/components/common/PageHeader';
 import KpiCard from '@/components/common/KpiCard';
-import AppChip, { type ChipVariant } from '@/components/common/Chip';
 import DonutChart from '@/components/charts/DonutChart';
 import BarChart, { type BarDatum } from '@/components/charts/BarChart';
 import TrendLineChart, { type TrendPoint } from '@/components/charts/TrendLineChart';
@@ -552,74 +544,6 @@ export default function DashboardPage() {
           </Card>
         </Grid>
       </Grid>
-
-      {/* Chip component showcase — all four styles, single-colour auto-fade */}
-      <Card>
-        <CardContent>
-          <Stack
-            direction="row"
-            sx={{ justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Chip Component
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              One colour in — background, border &amp; text fades out
-            </Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-            Four styles, fully dynamic. Pass a single <code>color</code> and the surface, border and
-            text tints are derived automatically. Icons are optional.
-          </Typography>
-
-          <Stack spacing={2.5}>
-            {(
-              [
-                { variant: 'outlined', title: 'Outlined' },
-                { variant: 'soft', title: 'Soft' },
-                { variant: 'solid', title: 'Solid' },
-                { variant: 'smooth', title: 'Smooth (pill + fade)' },
-              ] as { variant: ChipVariant; title: string }[]
-            ).map(({ variant, title }) => (
-              <Box key={variant}>
-                <Typography
-                  variant="overline"
-                  color="text.secondary"
-                  sx={{ display: 'block', mb: 1 }}
-                >
-                  {title}
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  <AppChip variant={variant} color={ACCENT.blue} icon={PushPinIcon} label="Pin" />
-                  <AppChip variant={variant} color={ACCENT.green} icon={ShieldIcon} label="Shield" />
-                  <AppChip variant={variant} color={ACCENT.violet} icon={BoltIcon} label="Activity" />
-                  <AppChip variant={variant} color={ACCENT.amber} icon={StarIcon} label="Featured" />
-                  <AppChip variant={variant} color={ACCENT.pink} icon={FavoriteIcon} label="Likeable" />
-                  <AppChip variant={variant} color={ACCENT.cyan} icon={LocalOfferIcon} label="Tag" />
-                  <AppChip variant={variant} color={ACCENT.amber} label="No icon" />
-                  <AppChip variant={variant} color={ACCENT.pink} icon={BugReportIcon} label="Deletable" onDelete={() => {}} />
-                </Stack>
-              </Box>
-            ))}
-
-            <Divider />
-
-            {/* Interactive / sizes */}
-            <Box>
-              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                Sizes &amp; states
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
-                <AppChip size="sm" variant="soft" color={ACCENT.violet} icon={StarIcon} label="Small" />
-                <AppChip size="md" variant="soft" color={ACCENT.violet} icon={StarIcon} label="Medium" />
-                <AppChip variant="smooth" color={ACCENT.green} label="Selected" selected onClick={() => {}} />
-                <AppChip variant="outlined" color={ACCENT.blue} label="Clickable" onClick={() => {}} />
-                <AppChip variant="solid" color={ACCENT.amber} label="Disabled" disabled />
-              </Stack>
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
 
       <Typography variant="caption" color="text.secondary">
         Figures are demo data for {term}. Connect the reporting API to show live results.

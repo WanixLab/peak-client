@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   Card,
-  CardContent,
   Chip,
   Dialog,
   DialogActions,
@@ -15,7 +14,6 @@ import {
   DialogTitle,
   Grid,
   IconButton,
-  InputAdornment,
   ListItemIcon,
   ListItemText,
   Menu,
@@ -30,7 +28,6 @@ import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-dat
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import SearchIcon from '@mui/icons-material/Search';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PeopleIcon from '@mui/icons-material/People';
@@ -42,6 +39,7 @@ import PauseCircleIcon from '@mui/icons-material/PauseCircle';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import PageHeader from '@/components/common/PageHeader';
 import StatTile from '@/components/common/StatTile';
+import FilterBar from '@/components/common/FilterBar';
 import { ACCENT } from '@/theme/accents';
 
 type MemberRole = 'student' | 'teacher' | 'staff' | 'admin';
@@ -467,74 +465,61 @@ export default function MembersPage() {
         </Grid>
       </Grid>
 
-      <Card>
-        <CardContent>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            <TextField
-              select
-              size="small"
-              label="Role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              sx={{ minWidth: 150 }}
-            >
-              <MenuItem value="all">All roles</MenuItem>
-              {(Object.keys(ROLE_META) as MemberRole[]).map((r) => (
-                <MenuItem key={r} value={r}>
-                  {ROLE_META[r].label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              size="small"
-              label="Group Permission"
-              value={group}
-              onChange={(e) => setGroup(e.target.value)}
-              sx={{ minWidth: 180 }}
-            >
-              <MenuItem value="all">All groups</MenuItem>
-              {GROUPS.map((g) => (
-                <MenuItem key={g} value={g}>
-                  {g}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              size="small"
-              label="Status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              sx={{ minWidth: 140 }}
-            >
-              <MenuItem value="all">All</MenuItem>
-              {(Object.keys(STATUS_META) as MemberStatus[]).map((s) => (
-                <MenuItem key={s} value={s}>
-                  {STATUS_META[s].label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Box sx={{ flexGrow: 1 }} />
-            <TextField
-              size="small"
-              placeholder="Search name, email, username…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ minWidth: { xs: '100%', md: 280 } }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-          </Stack>
-        </CardContent>
-      </Card>
+      <FilterBar
+        filters={[
+          {
+            key: 'role',
+            label: 'Role',
+            value: role,
+            onChange: setRole,
+            minWidth: 150,
+            options: [
+              { value: 'all', label: 'All roles' },
+              ...(Object.keys(ROLE_META) as MemberRole[]).map((r) => ({
+                value: r,
+                label: ROLE_META[r].label,
+              })),
+            ],
+          },
+          {
+            key: 'group',
+            label: 'Group Permission',
+            value: group,
+            onChange: setGroup,
+            minWidth: 180,
+            options: [
+              { value: 'all', label: 'All groups' },
+              ...GROUPS.map((g) => ({ value: g, label: g })),
+            ],
+          },
+          {
+            key: 'status',
+            label: 'Status',
+            value: status,
+            onChange: setStatus,
+            minWidth: 140,
+            options: [
+              { value: 'all', label: 'All' },
+              ...(Object.keys(STATUS_META) as MemberStatus[]).map((s) => ({
+                value: s,
+                label: STATUS_META[s].label,
+              })),
+            ],
+          },
+        ]}
+        search={{
+          value: search,
+          onChange: setSearch,
+          placeholder: 'Search name, email, username…',
+        }}
+        active={search !== '' || role !== 'all' || group !== 'all' || status !== 'all'}
+        onReset={() => {
+          setSearch('');
+          setRole('all');
+          setGroup('all');
+          setStatus('all');
+        }}
+      />
 
       <Card>
         <DataGrid<Member>
