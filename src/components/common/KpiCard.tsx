@@ -18,8 +18,6 @@ export interface KpiDelta {
   period?: string;
   /** Force a direction; otherwise inferred from the sign. */
   direction?: 'up' | 'down';
-  /** Set true when a downward change is good (e.g. fewer overdue). */
-  invertColor?: boolean;
 }
 
 export interface KpiCardProps {
@@ -28,14 +26,12 @@ export interface KpiCardProps {
   icon: SvgIconComponent;
   /** Accent colour — use a value from `@/theme/accents`. Defaults to theme primary. */
   color?: string;
-  /** `large` (hero figure, optional sparkline) or `compact` (dense row). */
+  /** `large` (hero figure) or `compact` (dense row). */
   variant?: KpiVariant;
   /** Change vs the previous period. */
   delta?: KpiDelta;
   /** Muted subtitle under the value (large variant), e.g. "Higher than yesterday". */
   caption?: string;
-  /** Mini area chart data — `large` variant only. */
-  sparkline?: number[];
   /** Icon badge fill. Defaults to a soft tint. */
   iconStyle?: KpiIconStyle;
   /** Trailing slot pinned top-right (e.g. a menu button). */
@@ -43,49 +39,12 @@ export interface KpiCardProps {
   onClick?: () => void;
 }
 
-/** Soft, self-contained SVG area sparkline. */
-function Sparkline({
-  data,
-  color,
-  width = 76,
-  height = 34,
-}: {
-  data: number[];
-  color: string;
-  width?: number;
-  height?: number;
-}) {
-  const gid = React.useId();
-  if (!data || data.length < 2) return null;
-
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const span = max - min || 1;
-  const stepX = width / (data.length - 1);
-  const pts = data.map((v, i) => [i * stepX, height - 2 - ((v - min) / span) * (height - 6)] as const);
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
-  const area = `${line} L${width} ${height} L0 ${height} Z`;
-
-  return (
-    <Box component="svg" width={width} height={height} viewBox={`0 0 ${width} ${height}`} sx={{ display: 'block', overflow: 'visible' }} aria-hidden>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.28} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${gid})`} />
-      <path d={line} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </Box>
-  );
-}
-
 /** Coloured delta with a trend arrow and optional period text. */
 function DeltaLine({ delta, size = 'md' }: { delta: KpiDelta; size?: 'sm' | 'md' }) {
   const theme = useTheme();
   const up = delta.direction ? delta.direction === 'up' : delta.value >= 0;
-  const good = delta.invertColor ? !up : up;
-  const color = good ? theme.palette.success.main : theme.palette.error.main;
+  // Colour follows the sign: negative is always red, positive/zero green.
+  const color = delta.value < 0 ? theme.palette.error.main : theme.palette.success.main;
   const Arrow = up ? TrendingUpIcon : TrendingDownIcon;
   const sign = delta.value > 0 ? '+' : '';
 
@@ -117,15 +76,14 @@ const SHADOW = {
 /**
  * The shared KPI card for the whole app, in two layouts:
  *
- * - `large` — an icon+label header, a hero value with an inline change delta,
- *   a muted caption and an optional area sparkline (mirrors the marketing-style
- *   summary tiles).
+ * - `large` — an icon+label header, a hero value with an inline change delta
+ *   and a muted caption (mirrors the marketing-style summary tiles).
  * - `compact` — a dense row with a leading tinted icon tile and a stacked
  *   label/value, for tight grids.
  *
- * Both are data-driven (pass `delta` for period-over-period change, `sparkline`
- * for a trend, `action` for a trailing control) and read consistently in light
- * and dark mode. Colour comes from the per-card `color` accent.
+ * Both are data-driven (pass `delta` for period-over-period change, `action`
+ * for a trailing control) and read consistently in light and dark mode. Colour
+ * comes from the per-card `color` accent.
  */
 export default function KpiCard({
   label,
@@ -135,7 +93,6 @@ export default function KpiCard({
   variant = 'large',
   delta,
   caption,
-  sparkline,
   iconStyle = 'soft',
   action,
   onClick,
@@ -255,16 +212,11 @@ export default function KpiCard({
         {delta && <DeltaLine delta={delta} />}
       </Stack>
 
-      <Stack direction="row" sx={{ alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, mt: 0.75 }}>
-        <Typography variant="body2" color="text.secondary" noWrap sx={{ minWidth: 0 }}>
-          {caption ?? ''}
+      {caption && (
+        <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.75, minWidth: 0 }}>
+          {caption}
         </Typography>
-        {sparkline && sparkline.length > 1 && (
-          <Box sx={{ flexShrink: 0 }}>
-            <Sparkline data={sparkline} color={accent} />
-          </Box>
-        )}
-      </Stack>
+      )}
     </Card>
   );
 }

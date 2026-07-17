@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Box, Card, CardContent, Divider, Grid, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Divider, Grid, IconButton, Stack, Typography } from '@mui/material';
 // Component showcase icons
 import PushPinIcon from '@mui/icons-material/PushPin';
 import ShieldIcon from '@mui/icons-material/Shield';
@@ -26,6 +26,10 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import GradeIcon from '@mui/icons-material/Grade';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import ApartmentIcon from '@mui/icons-material/Apartment';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import GroupIcon from '@mui/icons-material/Group';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import DescriptionIcon from '@mui/icons-material/Description';
 // Status-example icons (matching the reference mock)
 import CropFreeIcon from '@mui/icons-material/CropFree';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
@@ -93,6 +97,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+/** A card-corner overflow menu button — demo affordance for KpiCard's `action` slot. */
+function CardMenu() {
+  return (
+    <IconButton size="small" aria-label="More" onClick={(e) => e.stopPropagation()}>
+      <MoreVertIcon fontSize="small" />
+    </IconButton>
+  );
+}
+
 /**
  * A saturated status palette for the "soft / tonal" examples — deliberately
  * NOT pastel: the fills are light tints, but each hue stays vivid so the label
@@ -119,6 +132,14 @@ const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
 ];
+const DEPARTMENT_OPTIONS = [
+  { value: 'science', label: 'Science' },
+  { value: 'math', label: 'Mathematics' },
+  { value: 'thai', label: 'Thai' },
+  { value: 'english', label: 'English' },
+  { value: 'social', label: 'Social Studies' },
+  { value: 'arts', label: 'Arts' },
+];
 
 export default function ComponentsPlaygroundPage() {
   // Interactive state for the search / filter demos.
@@ -126,7 +147,17 @@ export default function ComponentsPlaygroundPage() {
   const [barSearch, setBarSearch] = React.useState('');
   const [role, setRole] = React.useState('all');
   const [status, setStatus] = React.useState('all');
-  const filtersActive = barSearch !== '' || role !== 'all' || status !== 'all';
+  const [departments, setDepartments] = React.useState<string[]>([]);
+  const [date, setDate] = React.useState('');
+  const [range, setRange] = React.useState({ from: '', to: '' });
+  const filtersActive =
+    barSearch !== '' ||
+    role !== 'all' ||
+    status !== 'all' ||
+    departments.length > 0 ||
+    date !== '' ||
+    range.from !== '' ||
+    range.to !== '';
 
   return (
     <Stack spacing={3}>
@@ -231,133 +262,125 @@ export default function ComponentsPlaygroundPage() {
         </Stack>
       </Section>
 
-      {/* ---------------- Status examples (soft / tonal colours) ---------------- */}
-      <Section
-        title="Status examples"
-        caption="Soft / tonal colours — a light tint fill with a saturated same-hue label"
-      >
-        <Stack spacing={2.5}>
-          <Row label="Chips">
-            <AppChip variant="outlined" color={HUE.violet} icon={CropFreeIcon} label="Panoramic" />
-            <AppChip variant="soft" color={HUE.red} icon={CancelIcon} label="Inactive" />
-            <AppChip variant="outlined" color={HUE.rose} icon={BuildIcon} label="Repair" />
-            <AppChip variant="outlined" color={HUE.orange} icon={OpenWithIcon} label="PTZ" />
-            <AppChip variant="soft" color={HUE.green} icon={CheckCircleIcon} label="Active" />
-            <AppChip variant="smooth" color={HUE.teal} icon={HandymanIcon} label="Installation" />
-            <AppChip variant="outlined" color={HUE.blue} icon={PhotoCameraIcon} label="Fixed" />
-            <AppChip variant="smooth" color={HUE.blue} icon={FactCheckIcon} label="Routine Check" />
-            <AppChip variant="soft" color={HUE.orange} icon={DeviceThermostatIcon} label="Thermal" />
-            <AppChip variant="soft" color={HUE.rose} icon={BuildIcon} label="Repair" />
-          </Row>
-
-          <Divider />
-
-          <Row label="Buttons">
-            <AppButton variant="soft" color={HUE.violet} startIcon={CropFreeIcon}>
-              Panoramic
-            </AppButton>
-            <AppButton variant="soft" color={HUE.red} startIcon={CancelIcon}>
-              Inactive
-            </AppButton>
-            <AppButton variant="soft" color={HUE.green} startIcon={CheckCircleIcon}>
-              Active
-            </AppButton>
-            <AppButton variant="smooth" color={HUE.teal} startIcon={HandymanIcon}>
-              Installation
-            </AppButton>
-            <AppButton variant="smooth" color={HUE.blue} startIcon={FactCheckIcon}>
-              Routine Check
-            </AppButton>
-            <AppButton variant="soft" color={HUE.orange} startIcon={DeviceThermostatIcon}>
-              Thermal
-            </AppButton>
-            <AppButton variant="soft" color={HUE.rose} startIcon={BuildIcon}>
-              Repair
-            </AppButton>
-          </Row>
-        </Stack>
-      </Section>
-
-      {/* ---------------- Summary / Stat cards ---------------- */}
-      <Section title="Summary Card" caption="Icon-led KPI tile · four variants, trend & progress">
-        <Stack spacing={2.5}>
-          <Grid container spacing={2}>
-            {(
-              [
-                { variant: 'soft', label: 'Soft (default)', color: ACCENT.violet },
-                { variant: 'plain', label: 'Plain', color: ACCENT.blue },
-                { variant: 'filled', label: 'Filled', color: ACCENT.green },
-                { variant: 'accent', label: 'Accent bar', color: ACCENT.pink },
-              ] as { variant: SummaryCardVariant; label: string; color: string }[]
-            ).map(({ variant, label, color }) => (
-              <Grid key={variant} size={{ xs: 12, sm: 6, lg: 3 }}>
-                <SummaryCard
-                  variant={variant}
-                  label={label}
-                  value="1,204"
-                  icon={PeopleIcon}
-                  color={color}
-                  trend={{ value: 8, label: 'vs last term' }}
-                  progress={variant === 'accent' ? 72 : undefined}
+      {/* ---------------- KPI cards ---------------- */}
+      <Section title="KPI Card" caption="By type — large on top, compact below, plus a hero row">
+        <Stack spacing={3}>
+          {/* --- Large zone --- */}
+          <Box>
+            <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              Large — soft &amp; solid icon, up / down delta, plain, and interactive + menu
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                <KpiCard
+                  label="Overall Progress"
+                  value="66%"
+                  icon={DonutLargeIcon}
+                  color={ACCENT.violet}
+                  caption="326 of 495 evaluations"
+                  delta={{ value: 4, period: 'vs last term' }}
                 />
               </Grid>
-            ))}
-          </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                <KpiCard
+                  label="Average Score"
+                  value="81.1"
+                  icon={GradeIcon}
+                  color={ACCENT.blue}
+                  iconStyle="solid"
+                  caption="Solid icon badge"
+                  delta={{ value: 3, period: 'vs last term' }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                <KpiCard
+                  label="Overdue Reviews"
+                  value={12}
+                  icon={WarningAmberIcon}
+                  color={ACCENT.amber}
+                  caption="Needs attention"
+                  delta={{ value: -8, period: 'vs last term' }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                <KpiCard
+                  label="Active Users"
+                  value="1,204"
+                  icon={GroupIcon}
+                  color={ACCENT.green}
+                  caption="Signed in this week"
+                  onClick={() => {}}
+                  action={<CardMenu />}
+                />
+              </Grid>
+            </Grid>
+          </Box>
 
           <Divider />
 
-          <Typography variant="overline" color="text.secondary" sx={{ display: 'block' }}>
-            StatTile (compact alias)
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatTile label="Total Members" value={128} icon={PeopleIcon} color={ACCENT.violet} />
+          {/* --- Compact zone --- */}
+          <Box>
+            <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              Compact — dense rows: up / down delta, no delta, solid icon, and interactive + menu
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                <KpiCard variant="compact" label="Completed" value={326} icon={CheckCircleIcon} color={ACCENT.green} delta={{ value: 8, period: 'vs last term' }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                <KpiCard variant="compact" label="Pending" value={81} icon={HourglassEmptyIcon} color={ACCENT.amber} delta={{ value: -3 }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                <KpiCard variant="compact" label="Evaluators" value={42} icon={PeopleIcon} color={ACCENT.pink} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                <KpiCard variant="compact" label="Departments" value={6} icon={ApartmentIcon} color={ACCENT.violet} iconStyle="solid" />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                <KpiCard variant="compact" label="In Progress" value={88} icon={EditNoteIcon} color={ACCENT.cyan} delta={{ value: 6 }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                <KpiCard variant="compact" label="Templates" value={14} icon={DescriptionIcon} color={ACCENT.blue} onClick={() => {}} action={<CardMenu />} />
+              </Grid>
             </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatTile label="Active" value={96} icon={CheckCircleIcon} color={ACCENT.green} hint="Signed in this week" />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatTile label="Pending" value={14} icon={HourglassEmptyIcon} color={ACCENT.amber} />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatTile label="Avg Score" value="82.4" icon={GradeIcon} color={ACCENT.blue} />
-            </Grid>
-          </Grid>
-        </Stack>
-      </Section>
+          </Box>
 
-      {/* ---------------- KPI cards ---------------- */}
-      <Section title="KPI Card" caption="Large (hero + sparkline) and compact layouts">
-        <Stack spacing={2.5}>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-              <KpiCard
-                label="Overall Progress"
-                value="66%"
-                icon={DonutLargeIcon}
-                color={ACCENT.violet}
-                caption="326 of 495 evaluations"
-                delta={{ value: 4, period: 'vs last term' }}
-              />
+          <Divider />
+
+          {/* --- Hero row --- */}
+          <Box>
+            <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              KPI row — one large card + a stack of compact cards
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, lg: 5 }}>
+                <KpiCard
+                  label="Overall Progress"
+                  value="66%"
+                  icon={DonutLargeIcon}
+                  color={ACCENT.violet}
+                  caption="326 of 495 evaluations"
+                  delta={{ value: 4, period: 'vs last term' }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, lg: 7 }}>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6 }}>
+                    <KpiCard variant="compact" label="Completed" value={326} icon={CheckCircleIcon} color={ACCENT.green} delta={{ value: 8, period: 'vs last term' }} />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <KpiCard variant="compact" label="In Progress" value={88} icon={EditNoteIcon} color={ACCENT.cyan} delta={{ value: 6 }} />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <KpiCard variant="compact" label="Pending" value={81} icon={HourglassEmptyIcon} color={ACCENT.amber} delta={{ value: -3 }} />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <KpiCard variant="compact" label="Evaluators" value={42} icon={PeopleIcon} color={ACCENT.pink} />
+                  </Grid>
+                </Grid>
+              </Grid>
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-              <KpiCard
-                label="Average Score"
-                value="81.1"
-                icon={GradeIcon}
-                color={ACCENT.blue}
-                caption="Weighted across departments"
-                delta={{ value: 3, period: 'vs last term' }}
-                sparkline={[74, 76, 78, 79, 81, 82]}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, lg: 3 }}>
-              <KpiCard variant="compact" label="In Progress" value={88} icon={EditNoteIcon} color={ACCENT.cyan} delta={{ value: 6 }} />
-            </Grid>
-            <Grid size={{ xs: 6, lg: 3 }}>
-              <KpiCard variant="compact" label="Departments" value={6} icon={ApartmentIcon} color={ACCENT.violet} />
-            </Grid>
-          </Grid>
+          </Box>
         </Stack>
       </Section>
 
@@ -382,26 +405,23 @@ export default function ComponentsPlaygroundPage() {
         <Stack spacing={2.5}>
           <Box>
             <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-              SearchField (clearable) — value: “{search || '—'}”
-            </Typography>
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder="Search name, email, username…"
-              sx={{ maxWidth: 360, width: '100%' }}
-            />
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-              FilterBar (filters + search + reset)
+              FilterBar — search + single-select, multi-select, date & date-range
             </Typography>
             <FilterBar
               filters={[
                 { key: 'role', label: 'Role', value: role, onChange: setRole, minWidth: 150, options: ROLE_OPTIONS },
                 { key: 'status', label: 'Status', value: status, onChange: setStatus, minWidth: 150, options: STATUS_OPTIONS },
+                {
+                  key: 'departments',
+                  type: 'multiselect',
+                  label: 'Departments',
+                  value: departments,
+                  onChange: setDepartments,
+                  minWidth: 180,
+                  options: DEPARTMENT_OPTIONS,
+                },
+                { key: 'date', type: 'date', label: 'Due date', value: date, onChange: setDate },
+                { key: 'range', type: 'daterange', label: 'Date range', value: range, onChange: setRange },
               ]}
               search={{ value: barSearch, onChange: setBarSearch, placeholder: 'Search…' }}
               active={filtersActive}
@@ -409,10 +429,17 @@ export default function ComponentsPlaygroundPage() {
                 setBarSearch('');
                 setRole('all');
                 setStatus('all');
+                setDepartments([]);
+                setDate('');
+                setRange({ from: '', to: '' });
               }}
             />
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Active: {filtersActive ? `role=${role}, status=${status}, q=“${barSearch}”` : 'none'}
+              Active:{' '}
+              {filtersActive
+                ? `role=${role}, status=${status}, depts=[${departments.join(', ') || '—'}], ` +
+                  `date=${date || '—'}, range=${range.from || '…'}→${range.to || '…'}, q=“${barSearch}”`
+                : 'none'}
             </Typography>
           </Box>
         </Stack>

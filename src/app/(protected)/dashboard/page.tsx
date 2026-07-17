@@ -292,7 +292,7 @@ export default function DashboardPage() {
             icon={HourglassEmptyIcon}
             color={ACCENT.amber}
             caption="Awaiting evaluation"
-            delta={{ value: -5, period: 'vs last term', invertColor: true }}
+            delta={{ value: -5, period: 'vs last term' }}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
@@ -303,7 +303,6 @@ export default function DashboardPage() {
             color={ACCENT.blue}
             caption="Weighted across departments"
             delta={{ value: 3, period: 'vs last term' }}
-            sparkline={trend.map((p) => p.value)}
           />
         </Grid>
       </Grid>
