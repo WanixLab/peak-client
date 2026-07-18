@@ -1,13 +1,12 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Checkbox,
-  Chip,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -16,7 +15,6 @@ import {
   FormControlLabel,
   FormLabel,
   Grid,
-  IconButton,
   MenuItem,
   Radio,
   RadioGroup,
@@ -68,10 +66,14 @@ import RuleIcon from '@mui/icons-material/Rule';
 import LayersIcon from '@mui/icons-material/Layers';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import PageHeader from '@/components/common/PageHeader';
-import StatTile from '@/components/common/StatTile';
+import KpiCard from '@/components/common/KpiCard';
+import Button from '@/components/common/Button';
+import Chip from '@/components/common/Chip';
 import { ACCENT } from '@/theme/accents';
+import { softCard } from '@/theme/surfaces';
+import { TOPICS } from '@/data/teamOralEvaluation';
 
-// --- Domain model -----------------------------------------------------------
+// --- โครงข้อมูล -------------------------------------------------------------
 
 type FieldType =
   | 'text'
@@ -92,12 +94,12 @@ interface FormField {
   helpText?: string;
   placeholder?: string;
   required: boolean;
-  /** Choice options — dropdown / radio / checkbox. */
+  /** ตัวเลือก — dropdown / radio / checkbox */
   options?: string[];
-  /** Numeric bounds — number. */
+  /** ขอบเขตตัวเลข — number */
   min?: number;
   max?: number;
-  /** Upper bound of the rating scale. */
+  /** ขอบบนของสเกลการให้คะแนน */
   scaleMax?: number;
 }
 
@@ -112,24 +114,28 @@ interface FieldTypeMeta {
   label: string;
   icon: typeof ShortTextIcon;
   color: string;
-  group: 'Basic' | 'Choice' | 'Advanced';
+  group: 'basic' | 'choice' | 'advanced';
   hasOptions?: boolean;
 }
 
 const FIELD_TYPES: Record<FieldType, FieldTypeMeta> = {
-  text: { label: 'Short text', icon: ShortTextIcon, color: ACCENT.blue, group: 'Basic' },
-  textarea: { label: 'Paragraph', icon: NotesIcon, color: ACCENT.blue, group: 'Basic' },
-  number: { label: 'Number', icon: NumbersIcon, color: ACCENT.cyan, group: 'Basic' },
-  date: { label: 'Date', icon: EventIcon, color: ACCENT.cyan, group: 'Basic' },
-  dropdown: { label: 'Dropdown', icon: ArrowDropDownCircleIcon, color: ACCENT.violet, group: 'Choice', hasOptions: true },
-  radio: { label: 'Single choice', icon: RadioButtonCheckedIcon, color: ACCENT.violet, group: 'Choice', hasOptions: true },
-  checkbox: { label: 'Checkboxes', icon: CheckBoxIcon, color: ACCENT.violet, group: 'Choice', hasOptions: true },
-  rating: { label: 'Rating scale', icon: StarIcon, color: ACCENT.amber, group: 'Advanced' },
-  file: { label: 'File upload', icon: UploadFileIcon, color: ACCENT.green, group: 'Advanced' },
-  signature: { label: 'Signature', icon: GestureIcon, color: ACCENT.pink, group: 'Advanced' },
+  text: { label: 'ข้อความสั้น', icon: ShortTextIcon, color: ACCENT.blue, group: 'basic' },
+  textarea: { label: 'ย่อหน้า', icon: NotesIcon, color: ACCENT.blue, group: 'basic' },
+  number: { label: 'ตัวเลข', icon: NumbersIcon, color: ACCENT.cyan, group: 'basic' },
+  date: { label: 'วันที่', icon: EventIcon, color: ACCENT.cyan, group: 'basic' },
+  dropdown: { label: 'เมนูเลือก', icon: ArrowDropDownCircleIcon, color: ACCENT.violet, group: 'choice', hasOptions: true },
+  radio: { label: 'เลือกอย่างเดียว', icon: RadioButtonCheckedIcon, color: ACCENT.violet, group: 'choice', hasOptions: true },
+  checkbox: { label: 'เลือกหลายอย่าง', icon: CheckBoxIcon, color: ACCENT.violet, group: 'choice', hasOptions: true },
+  rating: { label: 'สเกลให้คะแนน', icon: StarIcon, color: ACCENT.amber, group: 'advanced' },
+  file: { label: 'อัปโหลดไฟล์', icon: UploadFileIcon, color: ACCENT.green, group: 'advanced' },
+  signature: { label: 'ลายมือชื่อ', icon: GestureIcon, color: ACCENT.pink, group: 'advanced' },
 };
 
-const FIELD_GROUPS: FieldTypeMeta['group'][] = ['Basic', 'Choice', 'Advanced'];
+const FIELD_GROUPS: { key: FieldTypeMeta['group']; label: string }[] = [
+  { key: 'basic', label: 'พื้นฐาน' },
+  { key: 'choice', label: 'ตัวเลือก' },
+  { key: 'advanced', label: 'ขั้นสูง' },
+];
 
 let seq = 100;
 const uid = (p: string) => `${p}${(seq += 1)}`;
@@ -137,48 +143,133 @@ const uid = (p: string) => `${p}${(seq += 1)}`;
 function createField(type: FieldType): FormField {
   const base = { id: uid('f'), type, required: false } as FormField;
   const meta = FIELD_TYPES[type];
-  if (meta.hasOptions) return { ...base, label: meta.label, options: ['Option 1', 'Option 2', 'Option 3'] };
-  if (type === 'rating') return { ...base, label: 'Overall rating', scaleMax: 5 };
-  if (type === 'number') return { ...base, label: 'Number', min: 0, max: 100 };
+  if (meta.hasOptions) return { ...base, label: meta.label, options: ['ตัวเลือก 1', 'ตัวเลือก 2', 'ตัวเลือก 3'] };
+  if (type === 'rating') return { ...base, label: 'คะแนนโดยรวม', scaleMax: 5 };
+  if (type === 'number') return { ...base, label: 'ตัวเลข', min: 0, max: 100 };
   return { ...base, label: meta.label };
 }
 
-// --- Seed form --------------------------------------------------------------
+// --- แบบฟอร์มตัวอย่าง -------------------------------------------------------
 
 const SEED_SECTIONS: FormSection[] = [
   {
     id: 's1',
-    title: 'Project Overview',
-    description: 'Basic information about the project being evaluated.',
+    title: 'ภาพรวมโปรเจกต์',
+    description: 'ข้อมูลพื้นฐานของโปรเจกต์ที่ถูกประเมิน',
     fields: [
-      { id: 'f1', type: 'text', label: 'Project title', required: true, placeholder: 'e.g. Smart Attendance System' },
-      { id: 'f2', type: 'dropdown', label: 'Project category', required: true, options: ['Research', 'Innovation', 'Service', 'Startup'] },
-      { id: 'f3', type: 'textarea', label: 'Abstract', helpText: 'A short summary of the project (max 300 words).', required: false },
+      { id: 'f1', type: 'text', label: 'ชื่อโปรเจกต์', required: true, placeholder: 'เช่น ระบบเช็กชื่ออัจฉริยะ' },
+      { id: 'f2', type: 'dropdown', label: 'หมวดหมู่โปรเจกต์', required: true, options: ['วิจัย', 'นวัตกรรม', 'บริการ', 'สตาร์ทอัพ'] },
+      { id: 'f3', type: 'textarea', label: 'บทคัดย่อ', helpText: 'สรุปโปรเจกต์สั้น ๆ (ไม่เกิน 300 คำ)', required: false },
     ],
   },
   {
     id: 's2',
-    title: 'Assessment Criteria',
-    description: 'Rate each dimension of the project.',
+    title: 'เกณฑ์การประเมิน',
+    description: 'ให้คะแนนแต่ละมิติของโปรเจกต์',
     fields: [
-      { id: 'f4', type: 'rating', label: 'Originality & innovation', required: true, scaleMax: 5 },
-      { id: 'f5', type: 'rating', label: 'Technical execution', required: true, scaleMax: 5 },
-      { id: 'f6', type: 'radio', label: 'Meets the objectives?', required: true, options: ['Fully', 'Partially', 'Not met'] },
+      { id: 'f4', type: 'rating', label: 'ความคิดริเริ่ม & นวัตกรรม', required: true, scaleMax: 5 },
+      { id: 'f5', type: 'rating', label: 'การดำเนินการทางเทคนิค', required: true, scaleMax: 5 },
+      { id: 'f6', type: 'radio', label: 'บรรลุวัตถุประสงค์หรือไม่?', required: true, options: ['ครบถ้วน', 'บางส่วน', 'ไม่บรรลุ'] },
     ],
   },
   {
     id: 's3',
-    title: 'Attachments & Sign-off',
+    title: 'ไฟล์แนบ & การลงนาม',
     fields: [
-      { id: 'f7', type: 'file', label: 'Supporting document', helpText: 'PDF or slides, up to 20 MB.', required: false },
-      { id: 'f8', type: 'signature', label: 'Evaluator signature', required: true },
+      { id: 'f7', type: 'file', label: 'เอกสารประกอบ', helpText: 'PDF หรือสไลด์ ไม่เกิน 20 MB', required: false },
+      { id: 'f8', type: 'signature', label: 'ลายมือชื่อผู้ประเมิน', required: true },
     ],
   },
 ];
 
-const CATEGORIES = ['Project Evaluation', 'Self-Assessment', 'Peer Review', 'Advisor Review', 'Survey'];
+const CATEGORIES = ['ประเมินโปรเจกต์', 'ประเมินตนเอง', 'เพื่อนประเมิน', 'ที่ปรึกษาประเมิน', 'แบบสำรวจ'];
 
-// --- Sortable field row -----------------------------------------------------
+// --- เทมเพลต → พิมพ์เขียวช่อง (เปิดจากคลังเทมเพลตด้วย ?template=<id>) --------
+
+const ratingField = (label: string): FormField => ({ id: uid('f'), type: 'rating', label, required: true, scaleMax: 5 });
+const commentField = (): FormField => ({
+  id: uid('f'),
+  type: 'textarea',
+  label: 'ข้อคิดเห็น / สิ่งที่ปรับปรุงได้',
+  placeholder: 'ระบุจุดเด่น จุดที่ควรปรับปรุง หรือแนบลิงก์หลักฐาน',
+  required: false,
+});
+
+function ratingSection(title: string, labels: string[], signature = false): FormSection {
+  const fields = labels.map(ratingField);
+  if (signature) fields.push({ id: uid('f'), type: 'signature', label: 'ลายมือชื่อผู้ประเมิน', required: true });
+  return { id: uid('s'), title, fields };
+}
+
+/** แบบ Oral: 1 หัวข้อ = 1 ส่วน (สเกลให้คะแนน + ช่องความเห็น) + ลายมือชื่อกรรมการ */
+function buildOralSections(): FormSection[] {
+  const sections: FormSection[] = TOPICS.map((t) => ({
+    id: uid('s'),
+    title: `${t.no}. ${t.short}`,
+    description: t.name,
+    fields: [ratingField(t.name), commentField()],
+  }));
+  sections[sections.length - 1].fields.push({ id: uid('f'), type: 'signature', label: 'ลายมือชื่อกรรมการ', required: true });
+  return sections;
+}
+
+interface TemplateBlueprint {
+  name: string;
+  category: string;
+  /** สร้างส่วน/ช่องใหม่ (มี id ใหม่ทุกครั้ง) */
+  build: () => FormSection[];
+}
+
+/** คีย์ตรงกับ id ของเทมเพลตในคลังเทมเพลต (`forms/templates`). */
+const TEMPLATE_BLUEPRINTS: Record<string, TemplateBlueprint> = {
+  t1: {
+    name: 'แบบประเมินโปรเจกต์จบ',
+    category: 'ประเมินโปรเจกต์',
+    build: () => [ratingSection('เกณฑ์การประเมิน', ['ความคิดริเริ่ม & นวัตกรรม', 'การดำเนินการทางเทคนิค', 'การนำเสนอ', 'เอกสาร'])],
+  },
+  t2: {
+    name: 'แบบประเมินการมีส่วนร่วมของเพื่อน',
+    category: 'เพื่อนประเมิน',
+    build: () => [ratingSection('การมีส่วนร่วม', ['การทำงานร่วมกัน', 'ความน่าเชื่อถือ', 'การมีส่วนร่วม'])],
+  },
+  t3: {
+    name: 'แบบประเมินตนเอง (สะท้อนคิด)',
+    category: 'ประเมินตนเอง',
+    build: () => [
+      {
+        id: uid('s'),
+        title: 'สะท้อนคิด',
+        fields: [
+          { id: uid('f'), type: 'textarea', label: 'เป้าหมายที่ตั้งไว้', required: true },
+          { id: uid('f'), type: 'textarea', label: 'สิ่งที่ได้เรียนรู้', required: true },
+          { id: uid('f'), type: 'textarea', label: 'ก้าวต่อไป', required: false },
+        ],
+      },
+    ],
+  },
+  t4: {
+    name: 'แบบอนุมัติขั้นสุดท้ายโดยที่ปรึกษา',
+    category: 'ที่ปรึกษาประเมิน',
+    build: () => [ratingSection('การประเมินของที่ปรึกษา', ['บรรลุวัตถุประสงค์', 'ระเบียบวิธี', 'ผลกระทบ'], true)],
+  },
+  t5: {
+    name: 'แบบสำรวจความพึงพอใจรายวิชา',
+    category: 'แบบสำรวจ',
+    build: () => [ratingSection('ความพึงพอใจ', ['เนื้อหารายวิชา', 'ผู้สอน', 'สื่อการสอน', 'การวัดผล', 'ภาพรวม'])],
+  },
+  t6: {
+    name: 'แบบให้คะแนนพิตช์นวัตกรรม',
+    category: 'ประเมินโปรเจกต์',
+    build: () => [ratingSection('เกณฑ์พิตช์', ['ความเหมาะกับปัญหา', 'ศักยภาพตลาด'])],
+  },
+  t7: {
+    name: 'แบบประเมินความก้าวหน้าโครงงาน (Oral)',
+    category: 'ที่ปรึกษาประเมิน',
+    build: buildOralSections,
+  },
+};
+
+// --- แถวช่องแบบลากเรียงได้ ---------------------------------------------------
 
 function SortableField({
   field,
@@ -225,7 +316,7 @@ function SortableField({
         {...listeners}
         onClick={(e) => e.stopPropagation()}
         sx={{ display: 'flex', color: 'text.disabled', cursor: 'grab', touchAction: 'none', '&:active': { cursor: 'grabbing' } }}
-        aria-label="Drag to reorder"
+        aria-label="ลากเพื่อจัดเรียง"
       >
         <DragIndicatorIcon fontSize="small" />
       </Box>
@@ -248,7 +339,7 @@ function SortableField({
       <Box sx={{ minWidth: 0, flexGrow: 1 }}>
         <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
           <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-            {field.label || 'Untitled field'}
+            {field.label || 'ช่องไม่มีชื่อ'}
           </Typography>
           {field.required && (
             <Typography component="span" sx={{ color: 'error.main', fontWeight: 700, lineHeight: 1 }}>
@@ -258,27 +349,27 @@ function SortableField({
         </Stack>
         <Typography variant="caption" color="text.secondary">
           {meta.label}
-          {meta.hasOptions && field.options ? ` · ${field.options.length} options` : ''}
+          {meta.hasOptions && field.options ? ` · ${field.options.length} ตัวเลือก` : ''}
         </Typography>
       </Box>
 
       <Stack direction="row" sx={{ flexShrink: 0 }}>
-        <Tooltip title="Duplicate">
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDuplicate(); }}>
+        <Tooltip title="ทำสำเนา">
+          <Button variant="ghost" color={meta.color} iconOnly size="sm" onClick={(e) => { e.stopPropagation(); onDuplicate(); }}>
             <ContentCopyIcon sx={{ fontSize: 16 }} />
-          </IconButton>
+          </Button>
         </Tooltip>
-        <Tooltip title="Delete">
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+        <Tooltip title="ลบ">
+          <Button variant="ghost" color={ACCENT.pink} iconOnly size="sm" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
             <DeleteOutlineIcon sx={{ fontSize: 18 }} />
-          </IconButton>
+          </Button>
         </Tooltip>
       </Stack>
     </Box>
   );
 }
 
-// --- Field preview (used in the Preview dialog) -----------------------------
+// --- พรีวิวช่อง (ใช้ในกล่องดูตัวอย่าง) --------------------------------------
 
 function RatingPreview({ scaleMax = 5 }: { scaleMax?: number }) {
   const [value, setValue] = React.useState(0);
@@ -312,7 +403,7 @@ function RatingPreview({ scaleMax = 5 }: { scaleMax?: number }) {
 function FieldPreview({ field }: { field: FormField }) {
   const label = (
     <FormLabel sx={{ fontWeight: 600, color: 'text.primary', mb: 0.75, display: 'block' }}>
-      {field.label || 'Untitled field'}
+      {field.label || 'ช่องไม่มีชื่อ'}
       {field.required && <Box component="span" sx={{ color: 'error.main', ml: 0.5 }}>*</Box>}
     </FormLabel>
   );
@@ -329,7 +420,7 @@ function FieldPreview({ field }: { field: FormField }) {
       {field.type === 'date' && <TextField fullWidth size="small" type="date" slotProps={{ inputLabel: { shrink: true } }} />}
       {field.type === 'dropdown' && (
         <TextField select fullWidth size="small" defaultValue="">
-          <MenuItem value="">Select…</MenuItem>
+          <MenuItem value="">เลือก…</MenuItem>
           {(field.options ?? []).map((o, i) => (
             <MenuItem key={i} value={o}>{o}</MenuItem>
           ))}
@@ -375,7 +466,7 @@ function FieldPreview({ field }: { field: FormField }) {
             }}
           >
             <UploadFileIcon sx={{ fontSize: 26, mb: 0.5, opacity: 0.7 }} />
-            <Typography variant="body2">Click to upload or drag a file here</Typography>
+            <Typography variant="body2">คลิกเพื่ออัปโหลด หรือลากไฟล์มาวางที่นี่</Typography>
           </Box>
         </Box>
       )}
@@ -395,7 +486,7 @@ function FieldPreview({ field }: { field: FormField }) {
           >
             <Stack spacing={0.5} sx={{ alignItems: 'center' }}>
               <GestureIcon />
-              <Typography variant="caption">Sign here</Typography>
+              <Typography variant="caption">ลงลายมือชื่อที่นี่</Typography>
             </Stack>
           </Box>
         </Box>
@@ -410,27 +501,27 @@ function FieldPreview({ field }: { field: FormField }) {
   );
 }
 
-// --- Palette ----------------------------------------------------------------
+// --- แผงชนิดช่อง ------------------------------------------------------------
 
 function Palette({ onAdd }: { onAdd: (type: FieldType) => void }) {
   return (
-    <Card sx={{ position: { lg: 'sticky' }, top: { lg: 16 } }}>
+    <Card sx={[softCard, { position: { lg: 'sticky' }, top: { lg: 16 } }]}>
       <CardContent>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
           <TuneIcon fontSize="small" color="primary" />
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-            Field types
+            ชนิดของช่อง
           </Typography>
         </Stack>
         <Stack spacing={2}>
           {FIELD_GROUPS.map((group) => (
-            <Box key={group}>
+            <Box key={group.key}>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                {group}
+                {group.label}
               </Typography>
               <Stack spacing={0.75} sx={{ mt: 0.75 }}>
                 {(Object.keys(FIELD_TYPES) as FieldType[])
-                  .filter((t) => FIELD_TYPES[t].group === group)
+                  .filter((t) => FIELD_TYPES[t].group === group.key)
                   .map((t) => {
                     const meta = FIELD_TYPES[t];
                     const Icon = meta.icon;
@@ -478,7 +569,7 @@ function Palette({ onAdd }: { onAdd: (type: FieldType) => void }) {
   );
 }
 
-// --- Inspector --------------------------------------------------------------
+// --- ตัวแก้ไขตัวเลือก --------------------------------------------------------
 
 function OptionsEditor({
   options,
@@ -490,7 +581,7 @@ function OptionsEditor({
   return (
     <Stack spacing={1}>
       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-        OPTIONS
+        ตัวเลือก
       </Typography>
       {options.map((opt, i) => (
         <Stack key={i} direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
@@ -500,21 +591,26 @@ function OptionsEditor({
             value={opt}
             onChange={(e) => onChange(options.map((o, idx) => (idx === i ? e.target.value : o)))}
           />
-          <IconButton
-            size="small"
+          <Button
+            variant="ghost"
+            color={ACCENT.pink}
+            iconOnly
+            size="sm"
             disabled={options.length <= 1}
             onClick={() => onChange(options.filter((_, idx) => idx !== i))}
           >
             <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
+          </Button>
         </Stack>
       ))}
-      <Button size="small" startIcon={<AddIcon />} onClick={() => onChange([...options, `Option ${options.length + 1}`])} sx={{ alignSelf: 'flex-start' }}>
-        Add option
+      <Button variant="ghost" color={ACCENT.violet} size="sm" startIcon={AddIcon} onClick={() => onChange([...options, `ตัวเลือก ${options.length + 1}`])} style={{ alignSelf: 'flex-start' }}>
+        เพิ่มตัวเลือก
       </Button>
     </Stack>
   );
 }
+
+// --- แผงคุณสมบัติ ------------------------------------------------------------
 
 function Inspector({
   field,
@@ -531,15 +627,15 @@ function Inspector({
 }) {
   if (!field) {
     return (
-      <Card sx={{ position: { lg: 'sticky' }, top: { lg: 16 } }}>
+      <Card sx={[softCard, { position: { lg: 'sticky' }, top: { lg: 16 } }]}>
         <CardContent>
           <Stack spacing={1} sx={{ alignItems: 'center', textAlign: 'center', py: 4, color: 'text.secondary' }}>
             <SettingsIcon sx={{ fontSize: 40, opacity: 0.4 }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-              No field selected
+              ยังไม่ได้เลือกช่อง
             </Typography>
             <Typography variant="caption">
-              Add a field from the palette or select one on the canvas to edit its properties.
+              เพิ่มช่องจากแผงด้านซ้าย หรือเลือกช่องบนพื้นที่ทำงานเพื่อแก้ไขคุณสมบัติ
             </Typography>
           </Stack>
         </CardContent>
@@ -550,23 +646,23 @@ function Inspector({
   const meta = FIELD_TYPES[field.type];
 
   return (
-    <Card sx={{ position: { lg: 'sticky' }, top: { lg: 16 } }}>
+    <Card sx={[softCard, { position: { lg: 'sticky' }, top: { lg: 16 } }]}>
       <CardContent>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
           <RuleIcon fontSize="small" color="primary" />
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-            Field properties
+            คุณสมบัติของช่อง
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
-          <Chip size="small" label={meta.label} sx={{ bgcolor: alpha(meta.color, 0.12), color: meta.color, fontWeight: 600 }} />
+          <Chip label={meta.label} color={meta.color} variant="soft" size="sm" />
         </Stack>
 
         <Stack spacing={2}>
-          <TextField label="Label" size="small" fullWidth value={field.label} onChange={(e) => onChange({ label: e.target.value })} />
-          <TextField label="Help text" size="small" fullWidth value={field.helpText ?? ''} onChange={(e) => onChange({ helpText: e.target.value })} placeholder="Optional guidance shown under the field" />
+          <TextField label="ป้ายชื่อ" size="small" fullWidth value={field.label} onChange={(e) => onChange({ label: e.target.value })} />
+          <TextField label="ข้อความช่วยเหลือ" size="small" fullWidth value={field.helpText ?? ''} onChange={(e) => onChange({ helpText: e.target.value })} placeholder="คำแนะนำที่แสดงใต้ช่อง (ไม่บังคับ)" />
 
           {(field.type === 'text' || field.type === 'textarea' || field.type === 'number') && (
-            <TextField label="Placeholder" size="small" fullWidth value={field.placeholder ?? ''} onChange={(e) => onChange({ placeholder: e.target.value })} />
+            <TextField label="ข้อความตัวอย่าง" size="small" fullWidth value={field.placeholder ?? ''} onChange={(e) => onChange({ placeholder: e.target.value })} />
           )}
 
           {meta.hasOptions && (
@@ -575,13 +671,13 @@ function Inspector({
 
           {field.type === 'number' && (
             <Stack direction="row" spacing={1}>
-              <TextField label="Min" size="small" type="number" fullWidth value={field.min ?? ''} onChange={(e) => onChange({ min: e.target.value === '' ? undefined : Number(e.target.value) })} />
-              <TextField label="Max" size="small" type="number" fullWidth value={field.max ?? ''} onChange={(e) => onChange({ max: e.target.value === '' ? undefined : Number(e.target.value) })} />
+              <TextField label="ต่ำสุด" size="small" type="number" fullWidth value={field.min ?? ''} onChange={(e) => onChange({ min: e.target.value === '' ? undefined : Number(e.target.value) })} />
+              <TextField label="สูงสุด" size="small" type="number" fullWidth value={field.max ?? ''} onChange={(e) => onChange({ max: e.target.value === '' ? undefined : Number(e.target.value) })} />
             </Stack>
           )}
 
           {field.type === 'rating' && (
-            <TextField select label="Scale" size="small" fullWidth value={field.scaleMax ?? 5} onChange={(e) => onChange({ scaleMax: Number(e.target.value) })}>
+            <TextField select label="สเกล" size="small" fullWidth value={field.scaleMax ?? 5} onChange={(e) => onChange({ scaleMax: Number(e.target.value) })}>
               <MenuItem value={3}>1 – 3</MenuItem>
               <MenuItem value={5}>1 – 5</MenuItem>
               <MenuItem value={10}>1 – 10</MenuItem>
@@ -592,10 +688,10 @@ function Inspector({
 
           <FormControlLabel
             control={<Switch checked={field.required} onChange={(e) => onChange({ required: e.target.checked })} />}
-            label={<Typography variant="body2">Required field</Typography>}
+            label={<Typography variant="body2">ช่องบังคับกรอก</Typography>}
           />
 
-          <TextField select label="Section" size="small" fullWidth value={sectionId ?? ''} onChange={(e) => onMoveSection(e.target.value)}>
+          <TextField select label="ส่วน" size="small" fullWidth value={sectionId ?? ''} onChange={(e) => onMoveSection(e.target.value)}>
             {sections.map((s) => (
               <MenuItem key={s.id} value={s.id}>{s.title}</MenuItem>
             ))}
@@ -606,18 +702,32 @@ function Inspector({
   );
 }
 
-// --- Page -------------------------------------------------------------------
+// --- หน้าเพจ -----------------------------------------------------------------
 
-export default function FormBuilderPage() {
+function FormBuilder() {
   const theme = useTheme();
-  const [formName, setFormName] = React.useState('Project Evaluation Form');
-  const [category, setCategory] = React.useState(CATEGORIES[0]);
+  const searchParams = useSearchParams();
+
+  // เปิดจากคลังเทมเพลต (?template=<id>) → คำนวณสถานะเริ่มต้นจากพิมพ์เขียวครั้งเดียว
+  const initial = React.useMemo(() => {
+    const blueprint = TEMPLATE_BLUEPRINTS[searchParams.get('template') ?? ''];
+    if (!blueprint) {
+      return { name: 'แบบประเมินโปรเจกต์', category: CATEGORIES[0], sections: SEED_SECTIONS, loaded: null as string | null };
+    }
+    return { name: blueprint.name, category: blueprint.category, sections: blueprint.build(), loaded: blueprint.name };
+    // สร้างครั้งเดียวตอน mount — ตั้งใจไม่ผูกกับ searchParams เพื่อไม่ให้ id ช่องเปลี่ยนระหว่างแก้ไข
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [formName, setFormName] = React.useState(initial.name);
+  const [category, setCategory] = React.useState(initial.category);
   const [version, setVersion] = React.useState(3);
   const [published, setPublished] = React.useState(false);
-  const [sections, setSections] = React.useState<FormSection[]>(SEED_SECTIONS);
-  const [activeSectionId, setActiveSectionId] = React.useState<string>(SEED_SECTIONS[0].id);
+  const [sections, setSections] = React.useState<FormSection[]>(initial.sections);
+  const [activeSectionId, setActiveSectionId] = React.useState<string>(initial.sections[0]?.id ?? '');
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const loadedTemplate = initial.loaded;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -637,7 +747,7 @@ export default function FormBuilderPage() {
     [sections, allFields],
   );
 
-  // --- Mutations ---
+  // --- การแก้ไขข้อมูล ---
   const addField = (type: FieldType) => {
     const field = createField(type);
     setSections((prev) =>
@@ -699,7 +809,7 @@ export default function FormBuilderPage() {
   };
 
   const addSection = () => {
-    const s: FormSection = { id: uid('s'), title: `Section ${sections.length + 1}`, fields: [] };
+    const s: FormSection = { id: uid('s'), title: `ส่วนที่ ${sections.length + 1}`, fields: [] };
     setSections((prev) => [...prev, s]);
     setActiveSectionId(s.id);
   };
@@ -720,71 +830,73 @@ export default function FormBuilderPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
-        title="Form Builder"
-        description="Design dynamic evaluation forms with drag-and-drop fields, sections, and validation."
+        title="สร้างแบบฟอร์ม"
+        description="ออกแบบแบบฟอร์มประเมินแบบไดนามิกด้วยการลากวางช่อง ส่วน และการตรวจสอบความถูกต้อง"
         actions={
           <>
-            <Button variant="outlined" color="inherit" startIcon={<VisibilityIcon />} onClick={() => setPreviewOpen(true)}>
-              Preview
+            <Button variant="outlined" color={ACCENT.violet} startIcon={VisibilityIcon} onClick={() => setPreviewOpen(true)}>
+              ดูตัวอย่าง
             </Button>
-            <Button variant="outlined" startIcon={<SaveIcon />}>
-              Save draft
+            <Button variant="soft" color={ACCENT.violet} startIcon={SaveIcon}>
+              บันทึกร่าง
             </Button>
-            <Button variant="contained" startIcon={<PublishIcon />} onClick={publish}>
-              Publish
+            <Button variant="solid" color={ACCENT.violet} startIcon={PublishIcon} onClick={publish}>
+              เผยแพร่
             </Button>
           </>
         }
       />
 
       <Grid container spacing={2}>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Sections" value={stats.sections} icon={ViewAgendaIcon} color={ACCENT.violet} />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="จำนวนส่วน" value={stats.sections} icon={ViewAgendaIcon} color={ACCENT.violet} />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Fields" value={stats.fields} icon={LayersIcon} color={ACCENT.blue} />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="จำนวนช่อง" value={stats.fields} icon={LayersIcon} color={ACCENT.blue} />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Required" value={stats.required} icon={RuleIcon} color={ACCENT.amber} />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="ช่องบังคับกรอก" value={stats.required} icon={RuleIcon} color={ACCENT.amber} />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile
-            label="Version"
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard
+            label="เวอร์ชัน"
             value={`v${version}`}
             icon={AssignmentIcon}
             color={published ? ACCENT.green : ACCENT.cyan}
-            hint={published ? 'Published' : 'Draft'}
+            caption={published ? 'เผยแพร่แล้ว' : 'ฉบับร่าง'}
           />
         </Grid>
       </Grid>
 
-      {/* Form meta bar */}
-      <Card>
+      {/* แถบข้อมูลแบบฟอร์ม */}
+      <Card sx={softCard}>
         <CardContent>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: { md: 'center' } }}>
             <TextField
-              label="Form name"
+              label="ชื่อแบบฟอร์ม"
               size="small"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               sx={{ flexGrow: 1 }}
             />
-            <TextField select label="Category" size="small" value={category} onChange={(e) => setCategory(e.target.value)} sx={{ minWidth: 220 }}>
+            <TextField select label="หมวดหมู่" size="small" value={category} onChange={(e) => setCategory(e.target.value)} sx={{ minWidth: 220 }}>
               {CATEGORIES.map((c) => (
                 <MenuItem key={c} value={c}>{c}</MenuItem>
               ))}
             </TextField>
+            {loadedTemplate && (
+              <Chip label={`จากเทมเพลต: ${loadedTemplate}`} color={ACCENT.cyan} variant="soft" icon={ContentCopyIcon} />
+            )}
             <Chip
-              label={published ? 'Published' : 'Draft'}
-              color={published ? 'success' : 'default'}
-              variant={published ? 'filled' : 'outlined'}
-              sx={{ fontWeight: 600 }}
+              label={published ? 'เผยแพร่แล้ว' : 'ฉบับร่าง'}
+              color={published ? ACCENT.green : ACCENT.violet}
+              variant={published ? 'solid' : 'soft'}
             />
           </Stack>
         </CardContent>
       </Card>
 
-      {/* Workspace: palette · canvas · inspector */}
+      {/* พื้นที่ทำงาน: แผงชนิดช่อง · พื้นที่วาง · แผงคุณสมบัติ */}
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, alignItems: 'flex-start' }}>
         <Box sx={{ width: { xs: '100%', lg: 232 }, flexShrink: 0 }}>
           <Palette onAdd={addField} />
@@ -799,10 +911,7 @@ export default function FormBuilderPage() {
                   <Card
                     key={section.id}
                     onClick={() => setActiveSectionId(section.id)}
-                    sx={{
-                      borderColor: isActive ? 'primary.main' : 'divider',
-                      transition: 'border-color .15s',
-                    }}
+                    sx={[softCard, { borderTop: isActive ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent' }]}
                   >
                     <CardContent>
                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
@@ -823,16 +932,19 @@ export default function FormBuilderPage() {
                           slotProps={{ input: { disableUnderline: true, sx: { fontWeight: 700, fontSize: '1.05rem' } } }}
                           sx={{ flexGrow: 1 }}
                         />
-                        <Chip size="small" label={`${section.fields.length} fields`} variant="outlined" />
-                        <Tooltip title="Delete section">
+                        <Chip label={`${section.fields.length} ช่อง`} color={ACCENT.violet} variant="outlined" size="sm" />
+                        <Tooltip title="ลบส่วน">
                           <span>
-                            <IconButton
-                              size="small"
+                            <Button
+                              variant="ghost"
+                              color={ACCENT.pink}
+                              iconOnly
+                              size="sm"
                               disabled={sections.length <= 1}
                               onClick={(e) => { e.stopPropagation(); deleteSection(section.id); }}
                             >
                               <DeleteOutlineIcon fontSize="small" />
-                            </IconButton>
+                            </Button>
                           </span>
                         </Tooltip>
                       </Stack>
@@ -856,7 +968,7 @@ export default function FormBuilderPage() {
                               }}
                             >
                               <Typography variant="body2">
-                                {isActive ? 'Click a field type on the left to add it here.' : 'Empty — select this section, then add a field.'}
+                                {isActive ? 'คลิกชนิดช่องทางซ้ายเพื่อเพิ่มที่นี่' : 'ว่างเปล่า — เลือกส่วนนี้ แล้วเพิ่มช่อง'}
                               </Typography>
                             </Box>
                           ) : (
@@ -880,12 +992,13 @@ export default function FormBuilderPage() {
 
               <Button
                 variant="outlined"
-                color="inherit"
-                startIcon={<AddIcon />}
+                color={ACCENT.violet}
+                startIcon={AddIcon}
                 onClick={addSection}
-                sx={{ borderStyle: 'dashed', py: 1.25 }}
+                fullWidth
+                style={{ borderStyle: 'dashed', paddingTop: 10, paddingBottom: 10 }}
               >
-                Add section
+                เพิ่มส่วน
               </Button>
             </Stack>
           </DndContext>
@@ -902,7 +1015,7 @@ export default function FormBuilderPage() {
         </Box>
       </Box>
 
-      {/* Preview dialog */}
+      {/* กล่องดูตัวอย่าง */}
       <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} fullWidth maxWidth="sm" scroll="paper">
         <DialogTitle sx={{ pb: 1 }}>
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
@@ -914,7 +1027,7 @@ export default function FormBuilderPage() {
                 {formName}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {category} · Preview · v{version}
+                {category} · ตัวอย่าง · v{version}
               </Typography>
             </Box>
           </Stack>
@@ -933,7 +1046,7 @@ export default function FormBuilderPage() {
                 )}
                 <Stack spacing={2.5} sx={{ mt: 1.5 }}>
                   {section.fields.length === 0 ? (
-                    <Typography variant="body2" color="text.disabled">No fields in this section.</Typography>
+                    <Typography variant="body2" color="text.disabled">ไม่มีช่องในส่วนนี้</Typography>
                   ) : (
                     section.fields.map((field) => <FieldPreview key={field.id} field={field} />)
                   )}
@@ -941,12 +1054,20 @@ export default function FormBuilderPage() {
                 <Divider sx={{ mt: 3 }} />
               </Box>
             ))}
-            <Button variant="contained" size="large" disabled sx={{ alignSelf: 'flex-start' }}>
-              Submit evaluation
+            <Button variant="solid" color={ACCENT.violet} size="lg" disabled style={{ alignSelf: 'flex-start' }}>
+              ส่งการประเมิน
             </Button>
           </Stack>
         </DialogContent>
       </Dialog>
     </Stack>
+  );
+}
+
+export default function FormBuilderPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <FormBuilder />
+    </React.Suspense>
   );
 }

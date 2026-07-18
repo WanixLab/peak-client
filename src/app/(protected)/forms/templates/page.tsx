@@ -1,13 +1,12 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Avatar,
   Box,
-  Button,
   Card,
   CardContent,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -15,18 +14,14 @@ import {
   DialogTitle,
   Divider,
   Grid,
-  IconButton,
-  InputAdornment,
   ListItemIcon,
   ListItemText,
   Menu,
   MenuItem,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import SearchIcon from '@mui/icons-material/Search';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import PublicIcon from '@mui/icons-material/Public';
 import LockIcon from '@mui/icons-material/Lock';
@@ -46,10 +41,14 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import StarIcon from '@mui/icons-material/Star';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import PageHeader from '@/components/common/PageHeader';
-import StatTile from '@/components/common/StatTile';
+import KpiCard from '@/components/common/KpiCard';
+import FilterBar from '@/components/common/FilterBar';
+import Button from '@/components/common/Button';
+import Chip from '@/components/common/Chip';
 import { ACCENT } from '@/theme/accents';
+import { softCard, softCardHover } from '@/theme/surfaces';
 
-// --- Domain model -----------------------------------------------------------
+// --- โครงข้อมูล -------------------------------------------------------------
 
 type Visibility = 'public' | 'private';
 
@@ -77,133 +76,151 @@ interface FormTemplate {
 }
 
 const CATEGORY_META: Record<string, { color: string; icon: typeof DescriptionIcon }> = {
-  'Project Evaluation': { color: ACCENT.violet, icon: AssignmentTurnedInIcon },
-  'Self-Assessment': { color: ACCENT.blue, icon: PersonIcon },
-  'Peer Review': { color: ACCENT.cyan, icon: LayersIcon },
-  'Advisor Review': { color: ACCENT.green, icon: StarIcon },
-  Survey: { color: ACCENT.amber, icon: DescriptionIcon },
+  'ประเมินโปรเจกต์': { color: ACCENT.violet, icon: AssignmentTurnedInIcon },
+  'ประเมินตนเอง': { color: ACCENT.blue, icon: PersonIcon },
+  'เพื่อนประเมิน': { color: ACCENT.cyan, icon: LayersIcon },
+  'ที่ปรึกษาประเมิน': { color: ACCENT.green, icon: StarIcon },
+  'แบบสำรวจ': { color: ACCENT.amber, icon: DescriptionIcon },
 };
 
 const CATEGORIES = Object.keys(CATEGORY_META);
 
-const dateFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const dateFmt = new Intl.DateTimeFormat('th-TH-u-ca-gregory', { day: 'numeric', month: 'short', year: 'numeric' });
 
-// --- Seed data (today = 2026-07-15) ----------------------------------------
+// --- ข้อมูลตัวอย่าง (วันนี้ = 2026-07-18) ----------------------------------
 
 const SEED: FormTemplate[] = [
   {
     id: 't1',
-    name: 'Capstone Project Evaluation',
-    description: 'Comprehensive rubric-based form for final-year capstone project defense.',
-    category: 'Project Evaluation',
-    tags: ['capstone', 'engineering', 'defense'],
+    name: 'แบบประเมินโปรเจกต์จบ',
+    description: 'แบบฟอร์มอิงเกณฑ์แบบครบถ้วน สำหรับการสอบป้องกันโปรเจกต์จบของนักศึกษาปีสุดท้าย',
+    category: 'ประเมินโปรเจกต์',
+    tags: ['โปรเจกต์จบ', 'วิศวกรรม', 'สอบป้องกัน'],
     visibility: 'public',
     version: '2.4',
     sections: 4,
     fields: 18,
     usage: 132,
     rating: 4.8,
-    author: 'Anong Wattana',
+    author: 'อนงค์ วัฒนา',
     updated: '2026-07-09',
     history: [
-      { version: '2.4', date: '2026-07-09', note: 'Added innovation weighting section.' },
-      { version: '2.3', date: '2026-05-20', note: 'Refined delivery criteria.' },
-      { version: '2.0', date: '2026-02-11', note: 'Major restructure into 4 sections.' },
+      { version: '2.4', date: '2026-07-09', note: 'เพิ่มส่วนถ่วงน้ำหนักด้านนวัตกรรม' },
+      { version: '2.3', date: '2026-05-20', note: 'ปรับเกณฑ์การนำเสนอให้ชัดขึ้น' },
+      { version: '2.0', date: '2026-02-11', note: 'ปรับโครงสร้างใหญ่เป็น 4 ส่วน' },
     ],
   },
   {
     id: 't2',
-    name: 'Peer Contribution Review',
-    description: 'Lightweight form for students to rate teammates’ contribution and collaboration.',
-    category: 'Peer Review',
-    tags: ['teamwork', 'students'],
+    name: 'แบบประเมินการมีส่วนร่วมของเพื่อน',
+    description: 'แบบฟอร์มสั้นกระชับให้นักศึกษาประเมินการมีส่วนร่วมและการทำงานร่วมกันของเพื่อนในทีม',
+    category: 'เพื่อนประเมิน',
+    tags: ['ทีมเวิร์ก', 'นักศึกษา'],
     visibility: 'public',
     version: '1.6',
     sections: 2,
     fields: 9,
     usage: 210,
     rating: 4.5,
-    author: 'Rungroj Prasert',
+    author: 'รุ่งโรจน์ ประเสริฐ',
     updated: '2026-06-28',
     history: [
-      { version: '1.6', date: '2026-06-28', note: 'Added anonymous option note.' },
-      { version: '1.4', date: '2026-04-02', note: 'Shortened to 9 fields.' },
+      { version: '1.6', date: '2026-06-28', note: 'เพิ่มหมายเหตุตัวเลือกไม่ระบุชื่อ' },
+      { version: '1.4', date: '2026-04-02', note: 'ย่อเหลือ 9 ช่อง' },
     ],
   },
   {
     id: 't3',
-    name: 'Self-Assessment (Reflection)',
-    description: 'Guided reflection form covering goals, learning outcomes and next steps.',
-    category: 'Self-Assessment',
-    tags: ['reflection', 'growth'],
+    name: 'แบบประเมินตนเอง (สะท้อนคิด)',
+    description: 'แบบฟอร์มสะท้อนคิดแบบมีคำชี้แนะ ครอบคลุมเป้าหมาย ผลการเรียนรู้ และก้าวต่อไป',
+    category: 'ประเมินตนเอง',
+    tags: ['สะท้อนคิด', 'พัฒนาการ'],
     visibility: 'private',
     version: '1.2',
     sections: 3,
     fields: 11,
     usage: 47,
     rating: 4.2,
-    author: 'Suda Meesuk',
+    author: 'สุดา มีสุข',
     updated: '2026-07-01',
     history: [
-      { version: '1.2', date: '2026-07-01', note: 'Added learning-outcome grid.' },
-      { version: '1.0', date: '2026-03-15', note: 'Initial version.' },
+      { version: '1.2', date: '2026-07-01', note: 'เพิ่มตารางผลการเรียนรู้' },
+      { version: '1.0', date: '2026-03-15', note: 'เวอร์ชันแรก' },
     ],
   },
   {
     id: 't4',
-    name: 'Advisor Final Sign-off',
-    description: 'Advisor approval form with weighted scoring and signature block.',
-    category: 'Advisor Review',
-    tags: ['advisor', 'signature', 'approval'],
+    name: 'แบบอนุมัติขั้นสุดท้ายโดยที่ปรึกษา',
+    description: 'แบบฟอร์มอนุมัติของที่ปรึกษา พร้อมการให้คะแนนถ่วงน้ำหนักและช่องลงลายมือชื่อ',
+    category: 'ที่ปรึกษาประเมิน',
+    tags: ['ที่ปรึกษา', 'ลายมือชื่อ', 'อนุมัติ'],
     visibility: 'public',
     version: '3.0',
     sections: 3,
     fields: 14,
     usage: 88,
     rating: 4.9,
-    author: 'Kittset Laohong',
+    author: 'กิตติเศรษฐ์ เลาหง',
     updated: '2026-07-12',
     history: [
-      { version: '3.0', date: '2026-07-12', note: 'Reworked scoring formula.' },
-      { version: '2.1', date: '2026-05-05', note: 'Added digital signature field.' },
+      { version: '3.0', date: '2026-07-12', note: 'ปรับสูตรการให้คะแนนใหม่' },
+      { version: '2.1', date: '2026-05-05', note: 'เพิ่มช่องลายมือชื่อดิจิทัล' },
     ],
   },
   {
     id: 't5',
-    name: 'Course Satisfaction Survey',
-    description: 'End-of-term survey measuring course quality and instructor effectiveness.',
-    category: 'Survey',
-    tags: ['survey', 'feedback', 'course'],
+    name: 'แบบสำรวจความพึงพอใจรายวิชา',
+    description: 'แบบสำรวจปลายภาคเพื่อวัดคุณภาพรายวิชาและประสิทธิภาพของผู้สอน',
+    category: 'แบบสำรวจ',
+    tags: ['สำรวจ', 'ความเห็น', 'รายวิชา'],
     visibility: 'public',
     version: '1.9',
     sections: 2,
     fields: 12,
     usage: 356,
     rating: 4.3,
-    author: 'Prasit Thongdee',
+    author: 'ประสิทธิ์ ทองดี',
     updated: '2026-06-15',
     history: [
-      { version: '1.9', date: '2026-06-15', note: 'Added NPS question.' },
-      { version: '1.5', date: '2026-01-30', note: 'Rewrote Likert scale labels.' },
+      { version: '1.9', date: '2026-06-15', note: 'เพิ่มคำถาม NPS' },
+      { version: '1.5', date: '2026-01-30', note: 'เขียนป้ายสเกล Likert ใหม่' },
     ],
   },
   {
     id: 't6',
-    name: 'Innovation Pitch Scoring',
-    description: 'Fast scoring sheet for innovation and startup pitch competitions.',
-    category: 'Project Evaluation',
-    tags: ['pitch', 'startup', 'innovation'],
+    name: 'แบบให้คะแนนพิตช์นวัตกรรม',
+    description: 'แบบให้คะแนนแบบรวดเร็ว สำหรับการแข่งขันพิตช์นวัตกรรมและสตาร์ทอัพ',
+    category: 'ประเมินโปรเจกต์',
+    tags: ['พิตช์', 'สตาร์ทอัพ', 'นวัตกรรม'],
     visibility: 'private',
     version: '1.1',
     sections: 2,
     fields: 8,
     usage: 24,
     rating: 4.0,
-    author: 'Anong Wattana',
+    author: 'อนงค์ วัฒนา',
     updated: '2026-07-14',
     history: [
-      { version: '1.1', date: '2026-07-14', note: 'Tuned market-fit weighting.' },
-      { version: '1.0', date: '2026-06-30', note: 'Initial version.' },
+      { version: '1.1', date: '2026-07-14', note: 'ปรับน้ำหนักด้านความเหมาะสมกับตลาด' },
+      { version: '1.0', date: '2026-06-30', note: 'เวอร์ชันแรก' },
+    ],
+  },
+  {
+    id: 't7',
+    name: 'แบบประเมินความก้าวหน้าโครงงาน (Oral) — รายวงรอบ',
+    description: 'แบบประเมินการนำเสนอความก้าวหน้าโครงงานซอฟต์แวร์ 8 หัวข้อ ให้คะแนน 5 ระดับ โดยอาจารย์ 3 ท่านแบ่งหัวข้อกันประเมิน (ไม่ทับกัน) ครอบคลุม 4 วงรอบ รอบละ 2 เดือน',
+    category: 'ที่ปรึกษาประเมิน',
+    tags: ['Oral', 'โครงงาน', 'รายวงรอบ', '8 หัวข้อ'],
+    visibility: 'public',
+    version: '1.0',
+    sections: 8,
+    fields: 17,
+    usage: 12,
+    rating: 4.7,
+    author: 'อนงค์ วัฒนา',
+    updated: '2027-01-05',
+    history: [
+      { version: '1.0', date: '2027-01-05', note: 'สร้างจากแบบประเมิน Oral ของทีม T5 (TTT Brother)' },
     ],
   },
 ];
@@ -211,7 +228,7 @@ const SEED: FormTemplate[] = [
 const initials = (name: string) =>
   name.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 
-// --- Template card ----------------------------------------------------------
+// --- การ์ดเทมเพลต -----------------------------------------------------------
 
 function TemplateCard({
   tpl,
@@ -228,38 +245,30 @@ function TemplateCard({
   const Icon = meta.icon;
 
   return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'border-color .15s, box-shadow .15s',
-        '&:hover': { borderColor: 'primary.main', boxShadow: (t) => `0 6px 20px ${alpha(t.palette.common.black, 0.06)}` },
-      }}
-    >
+    <Card sx={[softCardHover, { height: '100%', display: 'flex', flexDirection: 'column' }]}>
       <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', mb: 1.5 }}>
-          <Avatar variant="rounded" sx={{ bgcolor: alpha(meta.color, 0.14), color: meta.color, width: 46, height: 46 }}>
+          <Avatar variant="rounded" sx={{ bgcolor: alpha(meta.color, 0.14), color: meta.color, width: 46, height: 46, borderRadius: 2 }}>
             <Icon />
           </Avatar>
           <Box sx={{ minWidth: 0, flexGrow: 1 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
               {tpl.name}
             </Typography>
-            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mt: 0.25 }}>
-              <Chip size="small" label={tpl.category} sx={{ height: 20, bgcolor: alpha(meta.color, 0.12), color: meta.color, fontWeight: 600 }} />
+            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
+              <Chip label={tpl.category} color={meta.color} variant="soft" size="sm" />
               <Chip
-                size="small"
-                icon={tpl.visibility === 'public' ? <PublicIcon sx={{ fontSize: 13 }} /> : <LockIcon sx={{ fontSize: 13 }} />}
-                label={tpl.visibility === 'public' ? 'Public' : 'Private'}
+                icon={tpl.visibility === 'public' ? PublicIcon : LockIcon}
+                label={tpl.visibility === 'public' ? 'สาธารณะ' : 'ส่วนตัว'}
+                color={tpl.visibility === 'public' ? ACCENT.green : ACCENT.amber}
                 variant="outlined"
-                sx={{ height: 20 }}
+                size="sm"
               />
             </Stack>
           </Box>
-          <IconButton size="small" onClick={onMenu}>
+          <Button variant="ghost" color={meta.color} iconOnly size="sm" onClick={onMenu}>
             <MoreVertIcon fontSize="small" />
-          </IconButton>
+          </Button>
         </Stack>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -268,7 +277,7 @@ function TemplateCard({
 
         <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
           {tpl.tags.map((tag) => (
-            <Chip key={tag} size="small" label={`#${tag}`} variant="outlined" sx={{ height: 22, color: 'text.secondary' }} />
+            <Chip key={tag} label={`#${tag}`} color={ACCENT.violet} variant="outlined" size="sm" />
           ))}
         </Stack>
 
@@ -277,11 +286,11 @@ function TemplateCard({
         <Stack direction="row" spacing={2} sx={{ color: 'text.secondary', mb: 1.5 }}>
           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
             <LayersIcon sx={{ fontSize: 16 }} />
-            <Typography variant="caption">{tpl.fields} fields</Typography>
+            <Typography variant="caption">{tpl.fields} ช่อง</Typography>
           </Stack>
           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
             <AssignmentTurnedInIcon sx={{ fontSize: 16 }} />
-            <Typography variant="caption">{tpl.usage} uses</Typography>
+            <Typography variant="caption">ใช้ {tpl.usage} ครั้ง</Typography>
           </Stack>
           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
             <StarIcon sx={{ fontSize: 16, color: ACCENT.amber }} />
@@ -298,18 +307,18 @@ function TemplateCard({
           <Typography variant="caption" color="text.secondary" noWrap sx={{ flexGrow: 1 }}>
             {tpl.author}
           </Typography>
-          <Chip size="small" label={`v${tpl.version}`} variant="outlined" sx={{ height: 20 }} />
+          <Chip label={`v${tpl.version}`} color={ACCENT.cyan} variant="outlined" size="sm" />
           <Typography variant="caption" color="text.secondary">
             {dateFmt.format(new Date(tpl.updated))}
           </Typography>
         </Stack>
 
         <Stack direction="row" spacing={1}>
-          <Button fullWidth variant="outlined" color="inherit" size="small" startIcon={<VisibilityIcon />} onClick={onPreview}>
-            Preview
+          <Button fullWidth variant="outlined" color={meta.color} startIcon={VisibilityIcon} onClick={onPreview}>
+            ดูตัวอย่าง
           </Button>
-          <Button fullWidth variant="contained" size="small" startIcon={<ContentCopyIcon />} onClick={onUse}>
-            Use
+          <Button fullWidth variant="solid" color={meta.color} startIcon={ContentCopyIcon} onClick={onUse}>
+            ใช้งาน
           </Button>
         </Stack>
       </CardContent>
@@ -317,10 +326,29 @@ function TemplateCard({
   );
 }
 
-// --- Page -------------------------------------------------------------------
+// --- หน้าเพจ -----------------------------------------------------------------
+
+const CATEGORY_OPTIONS = [
+  { value: 'all', label: 'ทุกหมวดหมู่' },
+  ...CATEGORIES.map((c) => ({ value: c, label: c })),
+];
+const VISIBILITY_OPTIONS = [
+  { value: 'all', label: 'ทั้งหมด' },
+  { value: 'public', label: 'สาธารณะ' },
+  { value: 'private', label: 'ส่วนตัว' },
+];
+const SORT_OPTIONS = [
+  { value: 'popular', label: 'ใช้มากที่สุด' },
+  { value: 'recent', label: 'อัปเดตล่าสุด' },
+  { value: 'rating', label: 'คะแนนสูงสุด' },
+];
 
 export default function TemplateLibraryPage() {
+  const router = useRouter();
   const [templates] = React.useState<FormTemplate[]>(SEED);
+
+  /** เปิดเทมเพลตในเครื่องมือสร้างแบบฟอร์ม (โหลดโครงช่องของเทมเพลตนั้น) */
+  const openInBuilder = (tpl: FormTemplate) => router.push(`/forms/builder?template=${tpl.id}`);
   const [search, setSearch] = React.useState('');
   const [category, setCategory] = React.useState('all');
   const [visibility, setVisibility] = React.useState('all');
@@ -360,6 +388,13 @@ export default function TemplateLibraryPage() {
     return sorted;
   }, [templates, search, category, visibility, sort]);
 
+  const filtersActive = category !== 'all' || visibility !== 'all' || search.trim() !== '';
+  const resetFilters = () => {
+    setCategory('all');
+    setVisibility('all');
+    setSearch('');
+  };
+
   const openMenu = (e: React.MouseEvent<HTMLElement>, row: FormTemplate) => {
     setMenuAnchor(e.currentTarget);
     setMenuRow(row);
@@ -372,83 +407,54 @@ export default function TemplateLibraryPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
-        title="Template Library"
-        description="Browse, preview and reuse saved form templates across the organization."
+        title="คลังเทมเพลต"
+        description="เรียกดู ดูตัวอย่าง และนำเทมเพลตแบบฟอร์มที่บันทึกไว้กลับมาใช้ทั่วทั้งองค์กร"
         actions={
           <>
-            <Button variant="outlined" color="inherit" startIcon={<UploadFileIcon />}>
-              Import
+            <Button variant="outlined" color={ACCENT.violet} startIcon={UploadFileIcon}>
+              นำเข้า
             </Button>
-            <Button variant="contained" startIcon={<AddIcon />}>
-              New template
+            <Button variant="solid" color={ACCENT.violet} startIcon={AddIcon}>
+              เทมเพลตใหม่
             </Button>
           </>
         }
       />
 
       <Grid container spacing={2}>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Templates" value={summary.total} icon={LibraryBooksIcon} color={ACCENT.violet} />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="เทมเพลตทั้งหมด" value={summary.total} icon={LibraryBooksIcon} color={ACCENT.violet} />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Public" value={summary.publicCount} icon={PublicIcon} color={ACCENT.green} hint="Shared org-wide" />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="สาธารณะ" value={summary.publicCount} icon={PublicIcon} color={ACCENT.green} caption="แชร์ทั้งองค์กร" />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Private" value={summary.privateCount} icon={LockIcon} color={ACCENT.amber} hint="Your unit only" />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="ส่วนตัว" value={summary.privateCount} icon={LockIcon} color={ACCENT.amber} caption="เฉพาะหน่วยงานคุณ" />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Categories" value={summary.categories} icon={CategoryIcon} color={ACCENT.blue} />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="หมวดหมู่" value={summary.categories} icon={CategoryIcon} color={ACCENT.blue} />
         </Grid>
       </Grid>
 
-      <Card>
-        <CardContent>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            <TextField select size="small" label="Category" value={category} onChange={(e) => setCategory(e.target.value)} sx={{ minWidth: 190 }}>
-              <MenuItem value="all">All categories</MenuItem>
-              {CATEGORIES.map((c) => (
-                <MenuItem key={c} value={c}>{c}</MenuItem>
-              ))}
-            </TextField>
-            <TextField select size="small" label="Visibility" value={visibility} onChange={(e) => setVisibility(e.target.value)} sx={{ minWidth: 150 }}>
-              <MenuItem value="all">All</MenuItem>
-              <MenuItem value="public">Public</MenuItem>
-              <MenuItem value="private">Private</MenuItem>
-            </TextField>
-            <TextField select size="small" label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} sx={{ minWidth: 150 }}>
-              <MenuItem value="popular">Most used</MenuItem>
-              <MenuItem value="recent">Recently updated</MenuItem>
-              <MenuItem value="rating">Top rated</MenuItem>
-            </TextField>
-            <Box sx={{ flexGrow: 1 }} />
-            <TextField
-              size="small"
-              placeholder="Search name, tag…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ minWidth: { xs: '100%', md: 260 } }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-          </Stack>
-        </CardContent>
-      </Card>
+      <FilterBar
+        search={{ value: search, onChange: setSearch, placeholder: 'ค้นหาชื่อ, แท็ก…' }}
+        filters={[
+          { key: 'category', label: 'หมวดหมู่', value: category, onChange: setCategory, options: CATEGORY_OPTIONS, minWidth: 190 },
+          { key: 'visibility', label: 'การมองเห็น', value: visibility, onChange: setVisibility, options: VISIBILITY_OPTIONS },
+          { key: 'sort', label: 'เรียงตาม', value: sort, onChange: (v) => setSort(v as typeof sort), options: SORT_OPTIONS },
+        ]}
+        onReset={resetFilters}
+        active={filtersActive}
+      />
 
       {filtered.length === 0 ? (
-        <Card>
+        <Card sx={softCard}>
           <CardContent>
             <Stack spacing={1} sx={{ alignItems: 'center', py: 6 }}>
               <LibraryBooksIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
-              <Typography variant="h6">No templates match your filters</Typography>
+              <Typography variant="h6">ไม่พบเทมเพลตที่ตรงกับตัวกรอง</Typography>
               <Typography variant="body2" color="text.secondary">
-                Try a different category, visibility or search term.
+                ลองเปลี่ยนหมวดหมู่ การมองเห็น หรือคำค้นหา
               </Typography>
             </Stack>
           </CardContent>
@@ -468,34 +474,34 @@ export default function TemplateLibraryPage() {
         </Grid>
       )}
 
-      {/* Row menu */}
+      {/* เมนูของแถว */}
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
         <MenuItem onClick={() => { if (menuRow) setUseTarget(menuRow); closeMenu(); }}>
           <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Clone to new form</ListItemText>
+          <ListItemText>ทำสำเนาเป็นแบบฟอร์มใหม่</ListItemText>
         </MenuItem>
         <MenuItem onClick={() => { if (menuRow) setHistory(menuRow); closeMenu(); }}>
           <ListItemIcon><HistoryIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Version history</ListItemText>
+          <ListItemText>ประวัติเวอร์ชัน</ListItemText>
         </MenuItem>
         <MenuItem onClick={closeMenu}>
           <ListItemIcon><FileDownloadIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Export JSON</ListItemText>
+          <ListItemText>ส่งออก JSON</ListItemText>
         </MenuItem>
         <Divider />
         <MenuItem onClick={closeMenu} sx={{ color: 'error.main' }}>
           <ListItemIcon><DeleteOutlineIcon fontSize="small" color="error" /></ListItemIcon>
-          <ListItemText>Delete</ListItemText>
+          <ListItemText>ลบ</ListItemText>
         </MenuItem>
       </Menu>
 
-      {/* Preview dialog */}
+      {/* กล่องดูตัวอย่าง */}
       <Dialog open={Boolean(preview)} onClose={() => setPreview(null)} fullWidth maxWidth="sm">
         {preview && (
           <>
             <DialogTitle sx={{ pb: 1 }}>
               <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                <Avatar variant="rounded" sx={{ bgcolor: alpha(CATEGORY_META[preview.category].color, 0.14), color: CATEGORY_META[preview.category].color }}>
+                <Avatar variant="rounded" sx={{ bgcolor: alpha(CATEGORY_META[preview.category].color, 0.14), color: CATEGORY_META[preview.category].color, borderRadius: 2 }}>
                   {React.createElement(CATEGORY_META[preview.category].icon)}
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
@@ -510,10 +516,10 @@ export default function TemplateLibraryPage() {
               </Typography>
               <Grid container spacing={2} sx={{ mb: 1 }}>
                 {[
-                  { label: 'Sections', value: preview.sections, icon: LayersIcon },
-                  { label: 'Fields', value: preview.fields, icon: DescriptionIcon },
-                  { label: 'Times used', value: preview.usage, icon: AssignmentTurnedInIcon },
-                  { label: 'Rating', value: preview.rating.toFixed(1), icon: StarIcon },
+                  { label: 'ส่วน', value: preview.sections, icon: LayersIcon },
+                  { label: 'ช่อง', value: preview.fields, icon: DescriptionIcon },
+                  { label: 'ใช้ไปแล้ว', value: preview.usage, icon: AssignmentTurnedInIcon },
+                  { label: 'คะแนน', value: preview.rating.toFixed(1), icon: StarIcon },
                 ].map((s) => (
                   <Grid key={s.label} size={6}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
@@ -528,32 +534,32 @@ export default function TemplateLibraryPage() {
               </Grid>
               <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, mt: 1.5 }}>
                 {preview.tags.map((tag) => (
-                  <Chip key={tag} size="small" label={`#${tag}`} variant="outlined" />
+                  <Chip key={tag} label={`#${tag}`} color={ACCENT.violet} variant="outlined" size="sm" />
                 ))}
               </Stack>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 2, color: 'text.secondary' }}>
                 <PersonIcon fontSize="small" />
-                <Typography variant="caption">Created by {preview.author}</Typography>
+                <Typography variant="caption">สร้างโดย {preview.author}</Typography>
                 <Box sx={{ flexGrow: 1 }} />
                 <ScheduleIcon fontSize="small" />
-                <Typography variant="caption">Updated {dateFmt.format(new Date(preview.updated))}</Typography>
+                <Typography variant="caption">อัปเดต {dateFmt.format(new Date(preview.updated))}</Typography>
               </Stack>
             </DialogContent>
             <DialogActions sx={{ px: 3, py: 2 }}>
-              <Button color="inherit" onClick={() => setPreview(null)}>Close</Button>
-              <Button variant="contained" startIcon={<ContentCopyIcon />} onClick={() => { setUseTarget(preview); setPreview(null); }}>
-                Use this template
+              <Button variant="ghost" color={ACCENT.violet} onClick={() => setPreview(null)}>ปิด</Button>
+              <Button variant="solid" color={ACCENT.violet} startIcon={ContentCopyIcon} onClick={() => { setUseTarget(preview); setPreview(null); }}>
+                ใช้เทมเพลตนี้
               </Button>
             </DialogActions>
           </>
         )}
       </Dialog>
 
-      {/* Version history dialog */}
+      {/* กล่องประวัติเวอร์ชัน */}
       <Dialog open={Boolean(history)} onClose={() => setHistory(null)} fullWidth maxWidth="xs">
         {history && (
           <>
-            <DialogTitle>Version history — {history.name}</DialogTitle>
+            <DialogTitle>ประวัติเวอร์ชัน — {history.name}</DialogTitle>
             <DialogContent dividers>
               <Stack spacing={2}>
                 {history.history.map((h, i) => (
@@ -565,7 +571,7 @@ export default function TemplateLibraryPage() {
                     <Box sx={{ pb: 1 }}>
                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>v{h.version}</Typography>
-                        {i === 0 && <Chip size="small" label="Current" color="primary" sx={{ height: 18 }} />}
+                        {i === 0 && <Chip label="ปัจจุบัน" color={ACCENT.violet} variant="solid" size="sm" />}
                         <Typography variant="caption" color="text.secondary">{dateFmt.format(new Date(h.date))}</Typography>
                       </Stack>
                       <Typography variant="body2" color="text.secondary">{h.note}</Typography>
@@ -575,25 +581,33 @@ export default function TemplateLibraryPage() {
               </Stack>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setHistory(null)}>Close</Button>
+              <Button variant="ghost" color={ACCENT.violet} onClick={() => setHistory(null)}>ปิด</Button>
             </DialogActions>
           </>
         )}
       </Dialog>
 
-      {/* Use / clone confirmation */}
+      {/* ยืนยันการใช้ / ทำสำเนา */}
       <Dialog open={Boolean(useTarget)} onClose={() => setUseTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Use template</DialogTitle>
+        <DialogTitle>ใช้เทมเพลต</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Create a new form from <strong>{useTarget?.name}</strong>? A copy of its {useTarget?.fields} fields
-            will open in the Form Builder for editing.
+            สร้างแบบฟอร์มใหม่จาก <strong>{useTarget?.name}</strong> หรือไม่? สำเนาของ {useTarget?.fields} ช่อง
+            จะถูกเปิดในเครื่องมือสร้างแบบฟอร์มเพื่อแก้ไข
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button color="inherit" onClick={() => setUseTarget(null)}>Cancel</Button>
-          <Button variant="contained" startIcon={<ContentCopyIcon />} onClick={() => setUseTarget(null)}>
-            Create form
+          <Button variant="ghost" color={ACCENT.violet} onClick={() => setUseTarget(null)}>ยกเลิก</Button>
+          <Button
+            variant="solid"
+            color={ACCENT.violet}
+            startIcon={ContentCopyIcon}
+            onClick={() => {
+              if (useTarget) openInBuilder(useTarget);
+              setUseTarget(null);
+            }}
+          >
+            เปิดในเครื่องมือสร้างแบบฟอร์ม
           </Button>
         </DialogActions>
       </Dialog>

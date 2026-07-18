@@ -58,10 +58,15 @@ function GoogleIcon() {
 }
 
 /** Build a demo session. Replace with a real API response in production. */
-function createDemoSession(email: string, name = 'Administrator'): { token: string; user: User } {
+function createDemoSession(
+  email: string,
+  name = 'Administrator',
+  role = 'admin',
+  roles?: string[],
+): { token: string; user: User } {
   return {
     token: `demo-token-${Date.now()}`,
-    user: { id: '1', name, username: email, role: 'admin' },
+    user: { id: '1', name, username: email, role, roles },
   };
 }
 
@@ -105,10 +110,19 @@ export default function LoginPage() {
     }
   };
 
-  // Placeholder for real OAuth — signs in the demo user for now.
+  // Placeholder for real OAuth — signs in a demo user who holds several
+  // permissions (teacher + mentor + student), so the home page shows its
+  // multi-role view switcher.
   const handleGoogleLogin = () => {
     dispatch(loginStart());
-    completeLogin(createDemoSession('demo.user@gmail.com', 'Google User'), true);
+    completeLogin(
+      createDemoSession('demo.user@gmail.com', 'Google User', 'teacher', [
+        'teacher',
+        'mentor',
+        'student',
+      ]),
+      true,
+    );
   };
 
   return (

@@ -4,7 +4,14 @@ export interface User {
   id: string;
   name: string;
   username: string;
+  /** Primary role — drives the sidebar and the default home view. */
   role: string;
+  /**
+   * Every permission/role this user holds (from their group permission). When
+   * present with more than one entry, the home page offers a view switcher so
+   * the user can look at the app through each of their roles.
+   */
+  roles?: string[];
 }
 
 export interface AuthState {

@@ -5,17 +5,14 @@ import {
   Alert,
   Avatar,
   Box,
-  Button,
   Card,
   CardContent,
-  Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   Grid,
-  InputAdornment,
   LinearProgress,
   MenuItem,
   Stack,
@@ -24,10 +21,6 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import SearchIcon from '@mui/icons-material/Search';
-import PersonIcon from '@mui/icons-material/Person';
-import GroupsIcon from '@mui/icons-material/Groups';
-import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -35,122 +28,66 @@ import EventIcon from '@mui/icons-material/Event';
 import LockIcon from '@mui/icons-material/Lock';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import GroupsIcon from '@mui/icons-material/Groups';
+import DynamicFormIcon from '@mui/icons-material/DynamicForm';
+import RuleIcon from '@mui/icons-material/Rule';
+import LinkIcon from '@mui/icons-material/Link';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
 import PageHeader from '@/components/common/PageHeader';
-import StatTile from '@/components/common/StatTile';
+import KpiCard from '@/components/common/KpiCard';
+import FilterBar from '@/components/common/FilterBar';
+import Button from '@/components/common/Button';
+import Chip from '@/components/common/Chip';
 import { ACCENT } from '@/theme/accents';
+import { softCard, softCardHover } from '@/theme/surfaces';
+import {
+  ADVISORS,
+  ORAL_META,
+  RATING_LEVELS,
+  ROUND_DUE,
+  TEAMS,
+  TOPICS,
+  ratingLevelOf,
+  type Advisor,
+  type Round,
+  type Team,
+} from '@/data/teamOralEvaluation';
 
-// --- Domain model -----------------------------------------------------------
+const dateFmt = new Intl.DateTimeFormat('th-TH-u-ca-gregory', { day: 'numeric', month: 'short', year: 'numeric' });
+// "วันนี้" ของสถานการณ์จำลอง — อยู่ในช่วงวงรอบที่ 4 ที่กำลังประเมิน
+const TODAY = new Date('2027-02-18');
 
-type EvalType = 'self' | 'peer' | 'advisor';
-type EvalStatus = 'not_started' | 'in_progress' | 'submitted';
+const topicOf = (id: string) => TOPICS.find((t) => t.id === id)!;
 
-interface Criterion {
-  id: string;
-  label: string;
-  hint: string;
-}
-interface Section {
-  id: string;
-  title: string;
-  criteria: Criterion[];
-}
-interface EvalTask {
-  id: string;
-  target: string;
-  subjectCode: string;
-  subject: string;
-  form: string;
-  type: EvalType;
-  dueDate: string; // ISO
-  status: EvalStatus;
-  scores: Record<string, number>;
-  comment: string;
-  /** Final percentage, set once submitted. */
-  finalScore?: number;
+/** สี/ป้ายตามคะแนน 0–5 */
+function scoreMeta(score: number | null | undefined): { color: string } {
+  if (score == null) return { color: ACCENT.violet };
+  if (score < 2) return { color: ACCENT.pink };
+  if (score < 3) return { color: ACCENT.amber };
+  if (score < 4) return { color: ACCENT.blue };
+  return { color: ACCENT.green };
 }
 
-const SCALE_MAX = 5;
-const SCALE_LABELS = ['Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
+type TaskStatus = 'not_started' | 'in_progress' | 'submitted';
 
-/** Shared rubric used by every task's form (a real app would vary per form). */
-const SECTIONS: Section[] = [
-  {
-    id: 'content',
-    title: 'Content & Knowledge',
-    criteria: [
-      { id: 'c1', label: 'Clarity of objectives', hint: 'Goals are well-defined and understood.' },
-      { id: 'c2', label: 'Depth of content', hint: 'Demonstrates thorough understanding.' },
-      { id: 'c3', label: 'Accuracy', hint: 'Information is correct and well-sourced.' },
-    ],
-  },
-  {
-    id: 'delivery',
-    title: 'Presentation & Delivery',
-    criteria: [
-      { id: 'd1', label: 'Delivery & confidence', hint: 'Clear, engaging communication.' },
-      { id: 'd2', label: 'Visual aids', hint: 'Supporting materials are effective.' },
-      { id: 'd3', label: 'Time management', hint: 'Kept to the allotted time.' },
-    ],
-  },
-  {
-    id: 'qa',
-    title: 'Discussion',
-    criteria: [{ id: 'q1', label: 'Answering questions', hint: 'Responds thoughtfully and accurately.' }],
-  },
-];
-
-const ALL_CRITERIA = SECTIONS.flatMap((s) => s.criteria);
-const TOTAL_CRITERIA = ALL_CRITERIA.length;
-
-const TYPE_META: Record<EvalType, { label: string; color: string; icon: typeof PersonIcon }> = {
-  self: { label: 'Self', color: ACCENT.violet, icon: PersonIcon },
-  peer: { label: 'Peer', color: ACCENT.blue, icon: GroupsIcon },
-  advisor: { label: 'Advisor', color: ACCENT.cyan, icon: SupervisorAccountIcon },
+const STATUS_META: Record<TaskStatus, { label: string; color: string; icon: typeof EditNoteIcon }> = {
+  not_started: { label: 'ยังไม่เริ่ม', color: ACCENT.amber, icon: PendingActionsIcon },
+  in_progress: { label: 'กำลังทำ', color: ACCENT.blue, icon: EditNoteIcon },
+  submitted: { label: 'ส่งแล้ว', color: ACCENT.green, icon: CheckCircleIcon },
 };
 
-const STATUS_META: Record<
-  EvalStatus,
-  { label: string; color: 'default' | 'warning' | 'success'; icon: typeof PersonIcon }
-> = {
-  not_started: { label: 'Not started', color: 'default', icon: PendingActionsIcon },
-  in_progress: { label: 'In progress', color: 'warning', icon: EditNoteIcon },
-  submitted: { label: 'Submitted', color: 'success', icon: CheckCircleIcon },
-};
-
-// --- Seed data (today = 2026-07-15) ----------------------------------------
-
-const SEED: EvalTask[] = [
-  { id: 't1', target: 'Napat Srisai', subjectCode: 'CS101', subject: 'Introduction to Programming', form: 'Project Evaluation Form', type: 'peer', dueDate: '2026-07-18', status: 'not_started', scores: {}, comment: '' },
-  { id: 't2', target: 'Team B — Final Presentation', subjectCode: 'CS205', subject: 'Data Structures', form: 'Project Evaluation Form', type: 'advisor', dueDate: '2026-07-16', status: 'in_progress', scores: { c1: 4, c2: 3, d1: 4 }, comment: 'Strong start, needs clearer visuals.' },
-  { id: 't3', target: 'My Self-Assessment', subjectCode: 'CS310', subject: 'Database Systems', form: 'Self-Assessment Form', type: 'self', dueDate: '2026-07-20', status: 'not_started', scores: {}, comment: '' },
-  { id: 't4', target: 'Marketing Group 3', subjectCode: 'MK310', subject: 'Marketing Research', form: 'Project Evaluation Form', type: 'peer', dueDate: '2026-07-14', status: 'not_started', scores: {}, comment: '' },
-  { id: 't5', target: 'Thanakorn Jaidee', subjectCode: 'PH150', subject: 'General Physics', form: 'Project Evaluation Form', type: 'advisor', dueDate: '2026-07-22', status: 'in_progress', scores: { c1: 5, c2: 4, c3: 4, d1: 4, d2: 3 }, comment: '' },
-  { id: 't6', target: 'Ploy Chaiyaphruek', subjectCode: 'MK310', subject: 'Marketing Research', form: 'Project Evaluation Form', type: 'peer', dueDate: '2026-07-10', status: 'submitted', scores: { c1: 5, c2: 4, c3: 5, d1: 4, d2: 4, d3: 5, q1: 4 }, comment: 'Excellent research depth and delivery.', finalScore: 89 },
-];
-
-const TODAY = new Date('2026-07-15');
-const dateFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-
-const progressOf = (task: EvalTask) =>
-  Math.round((Object.keys(task.scores).length / TOTAL_CRITERIA) * 100);
-
-const scoreToPct = (scores: Record<string, number>) => {
-  const values = Object.values(scores);
-  if (values.length === 0) return 0;
-  const avg = values.reduce((s, v) => s + v, 0) / values.length;
-  return Math.round((avg / SCALE_MAX) * 100);
-};
-
-/** Days until due (negative = overdue), and a display bucket. */
+/** จำนวนวันถึงกำหนด (ติดลบ = เกิน) พร้อมป้าย/สี */
 function dueInfo(dueDate: string) {
   const days = Math.ceil((new Date(dueDate).getTime() - TODAY.getTime()) / 86_400_000);
-  if (days < 0) return { days, label: `Overdue by ${-days}d`, color: 'error.main' as const };
-  if (days === 0) return { days, label: 'Due today', color: 'error.main' as const };
-  if (days <= 3) return { days, label: `Due in ${days}d`, color: 'warning.main' as const };
-  return { days, label: `Due ${dateFmt.format(new Date(dueDate))}`, color: 'text.secondary' as const };
+  if (days < 0) return { days, label: `เกินกำหนด ${-days} วัน`, color: 'error.main' as const };
+  if (days === 0) return { days, label: 'ครบกำหนดวันนี้', color: 'error.main' as const };
+  if (days <= 7) return { days, label: `อีก ${days} วัน`, color: 'warning.main' as const };
+  return { days, label: `ครบกำหนด ${dateFmt.format(new Date(dueDate))}`, color: 'text.secondary' as const };
 }
 
-// --- Rating input -----------------------------------------------------------
+// --- สเกลให้คะแนน 5 ระดับ (สิ่งที่ผู้ประเมินคลิก) ---------------------------
 
 function RatingScale({
   value,
@@ -161,38 +98,38 @@ function RatingScale({
   onChange?: (v: number) => void;
   readOnly?: boolean;
 }) {
+  // แสดงระดับเต็ม 1–5; ข้อมูลย้อนหลังที่เป็นครึ่งคะแนนจะไฮไลต์ระดับที่ใกล้ที่สุด
+  const active = value != null ? Math.round(value) : undefined;
   return (
     <Stack direction="row" spacing={0.75}>
-      {Array.from({ length: SCALE_MAX }, (_, i) => i + 1).map((n) => {
-        const active = value === n;
+      {RATING_LEVELS.map((lv) => {
+        const on = active === lv.level;
+        const meta = scoreMeta(lv.level);
         return (
-          <Tooltip key={n} title={SCALE_LABELS[n - 1]} arrow disableInteractive>
+          <Tooltip key={lv.level} title={`${lv.level} — ${lv.title}`} arrow disableInteractive>
             <Box
               component={readOnly ? 'div' : 'button'}
               type={readOnly ? undefined : 'button'}
-              onClick={readOnly ? undefined : () => onChange?.(n)}
-              aria-label={`${n} — ${SCALE_LABELS[n - 1]}`}
+              onClick={readOnly ? undefined : () => onChange?.(lv.level)}
+              aria-label={`${lv.level} — ${lv.title}`}
               sx={{
-                width: 38,
-                height: 38,
+                width: 40,
+                height: 40,
                 borderRadius: 1.5,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                display: 'grid',
+                placeItems: 'center',
                 fontWeight: 700,
-                fontSize: 14,
+                fontSize: 15,
                 cursor: readOnly ? 'default' : 'pointer',
                 border: '1px solid',
-                borderColor: active ? 'primary.main' : 'divider',
-                bgcolor: active ? 'primary.main' : 'transparent',
-                color: active ? 'primary.contrastText' : 'text.secondary',
+                borderColor: on ? meta.color : 'divider',
+                bgcolor: on ? alpha(meta.color, 0.14) : 'transparent',
+                color: on ? meta.color : 'text.secondary',
                 transition: 'all .15s',
-                '&:hover': readOnly
-                  ? undefined
-                  : { borderColor: 'primary.main', bgcolor: (t) => alpha(t.palette.primary.main, active ? 1 : 0.08) },
+                '&:hover': readOnly ? undefined : { borderColor: meta.color, bgcolor: alpha(meta.color, 0.08) },
               }}
             >
-              {n}
+              {lv.level}
             </Box>
           </Tooltip>
         );
@@ -201,159 +138,184 @@ function RatingScale({
   );
 }
 
-// --- Evaluation dialog ------------------------------------------------------
+// --- ฟอร์มที่ผู้ประเมินเห็น (เฉพาะหัวข้อที่ตัวเองรับผิดชอบ) -----------------
 
-function EvaluationDialog({
-  task,
-  open,
+interface Draft {
+  scores: Record<string, number | undefined>;
+  comments: Record<string, string>;
+}
+
+function EvaluationForm({
+  advisor,
+  team,
+  round,
+  readOnly,
   onClose,
   onSaveDraft,
   onSubmit,
 }: {
-  task: EvalTask | null;
-  open: boolean;
+  advisor: Advisor;
+  team: Team;
+  round: Round;
+  readOnly: boolean;
   onClose: () => void;
-  onSaveDraft: (scores: Record<string, number>, comment: string) => void;
-  onSubmit: (scores: Record<string, number>, comment: string) => void;
+  onSaveDraft: (draft: Draft) => void;
+  onSubmit: (draft: Draft) => void;
 }) {
-  const readOnly = task?.status === 'submitted';
-  const [scores, setScores] = React.useState<Record<string, number>>(task?.scores ?? {});
-  const [comment, setComment] = React.useState(task?.comment ?? '');
+  const owned = advisor.topicIds.map(topicOf);
+  const [draft, setDraft] = React.useState<Draft>(() => ({
+    scores: Object.fromEntries(advisor.topicIds.map((id) => [id, round.results[id]?.score ?? undefined])),
+    comments: Object.fromEntries(advisor.topicIds.map((id) => [id, round.results[id]?.comment ?? ''])),
+  }));
+  const [showLegend, setShowLegend] = React.useState(false);
   const [showErrors, setShowErrors] = React.useState(false);
 
-  if (!task) return null;
+  const rated = owned.filter((t) => draft.scores[t.id] != null).length;
+  const progress = Math.round((rated / owned.length) * 100);
+  const missing = owned.filter((t) => draft.scores[t.id] == null);
 
-  const answered = Object.keys(scores).length;
-  const progress = Math.round((answered / TOTAL_CRITERIA) * 100);
-  const missing = ALL_CRITERIA.filter((c) => scores[c.id] == null).map((c) => c.id);
-  const typeMeta = TYPE_META[task.type];
-
-  const setScore = (id: string, v: number) => setScores((prev) => ({ ...prev, [id]: v }));
+  const setScore = (id: string, v: number) => setDraft((d) => ({ ...d, scores: { ...d.scores, [id]: v } }));
+  const setComment = (id: string, v: string) => setDraft((d) => ({ ...d, comments: { ...d.comments, [id]: v } }));
 
   const handleSubmit = () => {
     if (missing.length > 0) {
       setShowErrors(true);
       return;
     }
-    onSubmit(scores, comment);
+    onSubmit(draft);
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" scroll="paper">
+    <Dialog open onClose={onClose} fullWidth maxWidth="md" scroll="paper">
       <DialogTitle sx={{ pb: 1 }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <Avatar variant="rounded" sx={{ bgcolor: alpha(typeMeta.color, 0.14), color: typeMeta.color }}>
-            <typeMeta.icon />
+          <Avatar variant="rounded" sx={{ bgcolor: alpha(ACCENT.violet, 0.14), color: ACCENT.violet, borderRadius: 2 }}>
+            <DynamicFormIcon />
           </Avatar>
           <Box sx={{ minWidth: 0, flexGrow: 1 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>
-              {task.target}
+              {ORAL_META.formName}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {task.subjectCode} · {task.subject} · {task.form}
+              ทีม {team.code} · {team.company} · {round.label}
             </Typography>
           </Box>
-          <Chip size="small" label={`${typeMeta.label} evaluation`} sx={{ bgcolor: alpha(typeMeta.color, 0.12), color: typeMeta.color, fontWeight: 600 }} />
         </Stack>
-        <Box sx={{ mt: 2 }}>
+
+        {/* ลำดับ ฟอร์ม → เกณฑ์ → คะแนน */}
+        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75, mt: 1.5, alignItems: 'center' }}>
+          <Chip icon={RuleIcon} label={`${ORAL_META.rubricName} · ผ่าน ≥ ${ORAL_META.passPercent}%`} color={ACCENT.cyan} variant="outlined" size="sm" />
+          <Chip icon={AssignmentIndIcon} label={`คุณรับผิดชอบ ${owned.length} จาก ${TOPICS.length} หัวข้อ`} color={ACCENT.violet} variant="soft" size="sm" />
+        </Stack>
+
+        <Box sx={{ mt: 1.5 }}>
           <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
             <Typography variant="caption" color="text.secondary">
-              {readOnly ? 'Submitted' : `Progress · ${answered}/${TOTAL_CRITERIA} criteria`}
+              {readOnly ? 'ส่งแล้ว' : `ให้คะแนนแล้ว ${rated}/${owned.length} หัวข้อ`}
             </Typography>
-            <Typography variant="caption" sx={{ fontWeight: 700 }}>
-              {readOnly && task.finalScore != null ? `Score ${task.finalScore}%` : `${progress}%`}
-            </Typography>
+            <Typography variant="caption" sx={{ fontWeight: 700 }}>{readOnly ? '100%' : `${progress}%`}</Typography>
           </Stack>
-          <LinearProgress
-            variant="determinate"
-            value={readOnly ? 100 : progress}
-            color={readOnly ? 'success' : 'primary'}
-            sx={{ height: 8, borderRadius: 5 }}
-          />
+          <LinearProgress variant="determinate" value={readOnly ? 100 : progress} color={readOnly ? 'success' : 'primary'} sx={{ height: 8, borderRadius: 5 }} />
         </Box>
       </DialogTitle>
 
       <DialogContent dividers>
         {readOnly && (
           <Alert severity="success" icon={<LockIcon fontSize="inherit" />} sx={{ mb: 2 }}>
-            This evaluation has been submitted and is locked. You can review it below.
+            ส่งการประเมินนี้แล้ว — ดูได้อย่างเดียว
+          </Alert>
+        )}
+        {!readOnly && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            คุณได้รับมอบหมายให้ประเมิน <strong>{owned.length}</strong> หัวข้อด้านล่าง อีก {TOPICS.length - owned.length} หัวข้อที่เหลือ
+            อาจารย์ท่านอื่นเป็นผู้ประเมิน (แบ่งกันไม่ทับ)
           </Alert>
         )}
         {showErrors && missing.length > 0 && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            Please rate all criteria before submitting — {missing.length} remaining.
+            กรุณาให้คะแนนให้ครบทุกหัวข้อก่อนส่ง — เหลืออีก {missing.length} หัวข้อ
           </Alert>
         )}
 
-        <Stack spacing={3}>
-          {SECTIONS.map((section) => (
-            <Box key={section.id}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
-                {section.title}
-              </Typography>
-              <Stack spacing={1.5}>
-                {section.criteria.map((c) => {
-                  const isMissing = showErrors && scores[c.id] == null;
-                  return (
-                    <Stack
-                      key={c.id}
-                      direction={{ xs: 'column', sm: 'row' }}
-                      spacing={1.5}
-                      sx={{
-                        alignItems: { sm: 'center' },
-                        justifyContent: 'space-between',
-                        p: 1.5,
-                        borderRadius: 2,
-                        border: '1px solid',
-                        borderColor: isMissing ? 'error.main' : 'divider',
-                      }}
-                    >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {c.label}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {c.hint}
-                        </Typography>
-                      </Box>
-                      <RatingScale
-                        value={scores[c.id]}
-                        onChange={(v) => setScore(c.id, v)}
-                        readOnly={readOnly}
-                      />
-                    </Stack>
-                  );
-                })}
-              </Stack>
-            </Box>
-          ))}
+        {/* อ้างอิงเกณฑ์ 5 ระดับ */}
+        <Box sx={{ mb: 2 }}>
+          <Button variant="ghost" color={ACCENT.violet} size="sm" endIcon={ExpandMoreIcon} onClick={() => setShowLegend((s) => !s)}>
+            เกณฑ์การให้คะแนน 5 ระดับ
+          </Button>
+          <Collapse in={showLegend}>
+            <Stack spacing={0.5} sx={{ mt: 1 }}>
+              {RATING_LEVELS.map((lv) => (
+                <Stack key={lv.level} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <Chip label={String(lv.level)} color={scoreMeta(lv.level).color} variant="soft" size="sm" />
+                  <Typography variant="caption" sx={{ fontWeight: 700 }}>{lv.title}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>— {lv.description}</Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Collapse>
+        </Box>
 
-          <Divider />
-          <TextField
-            label="Overall comment"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            multiline
-            minRows={3}
-            fullWidth
-            placeholder="Summarize your feedback…"
-            disabled={readOnly}
-          />
+        <Stack spacing={1.5}>
+          {owned.map((topic) => {
+            const value = draft.scores[topic.id];
+            const level = ratingLevelOf(value);
+            const meta = scoreMeta(value);
+            const isMissing = showErrors && value == null;
+            return (
+              <Box
+                key={topic.id}
+                sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: isMissing ? 'error.main' : 'divider' }}
+              >
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, mb: 1.5 }}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                    <Box sx={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700, bgcolor: alpha(ACCENT.violet, 0.14), color: ACCENT.violet }}>
+                      {topic.no}
+                    </Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{topic.name}</Typography>
+                  </Stack>
+                  <RatingScale value={value} onChange={(v) => setScore(topic.id, v)} readOnly={readOnly} />
+                </Stack>
+
+                {level && (
+                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 1 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: meta.color }}>
+                      ระดับ {value} · {level.title}
+                    </Typography>
+                  </Stack>
+                )}
+
+                <TextField
+                  size="small"
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  label="ข้อคิดเห็น / สิ่งที่ปรับปรุงได้"
+                  placeholder="ระบุจุดเด่น จุดที่ควรปรับปรุง หรือแนบลิงก์หลักฐาน…"
+                  value={draft.comments[topic.id]}
+                  onChange={(e) => setComment(topic.id, e.target.value)}
+                  disabled={readOnly}
+                />
+                {readOnly && round.results[topic.id]?.evidence && (
+                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mt: 1 }}>
+                    <LinkIcon sx={{ fontSize: 16, color: ACCENT.blue }} />
+                    <Typography variant="caption" sx={{ color: ACCENT.blue, wordBreak: 'break-all' }}>
+                      {round.results[topic.id]?.evidence}
+                    </Typography>
+                  </Stack>
+                )}
+              </Box>
+            );
+          })}
         </Stack>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} color="inherit">
-          {readOnly ? 'Close' : 'Cancel'}
-        </Button>
+        <Button variant="ghost" color={ACCENT.violet} onClick={onClose}>{readOnly ? 'ปิด' : 'ยกเลิก'}</Button>
         {!readOnly && (
           <>
-            <Button variant="outlined" onClick={() => onSaveDraft(scores, comment)}>
-              Save draft
-            </Button>
-            <Button variant="contained" onClick={handleSubmit}>
-              Submit
-            </Button>
+            <Box sx={{ flexGrow: 1 }} />
+            <Button variant="outlined" color={ACCENT.violet} onClick={() => onSaveDraft(draft)}>บันทึกร่าง</Button>
+            <Button variant="solid" color={ACCENT.violet} onClick={handleSubmit}>ส่งการประเมิน</Button>
           </>
         )}
       </DialogActions>
@@ -361,70 +323,72 @@ function EvaluationDialog({
   );
 }
 
-// --- Task card --------------------------------------------------------------
+// --- การ์ดงานประเมิน --------------------------------------------------------
 
-function TaskCard({ task, onOpen }: { task: EvalTask; onOpen: (t: EvalTask) => void }) {
-  const typeMeta = TYPE_META[task.type];
-  const statusMeta = STATUS_META[task.status];
-  const due = dueInfo(task.dueDate);
-  const progress = progressOf(task);
-  const submitted = task.status === 'submitted';
+interface Task {
+  team: Team;
+  round: Round;
+  status: TaskStatus;
+  rated: number;
+  owned: number;
+}
+
+function TaskCard({ advisor, task, onOpen }: { advisor: Advisor; task: Task; onOpen: () => void }) {
+  const { team, round, status } = task;
+  const statusMeta = STATUS_META[status];
+  const submitted = status === 'submitted';
+  const due = dueInfo(ROUND_DUE[round.id]);
+  const progress = Math.round((task.rated / task.owned) * 100);
+  const ownedTopics = advisor.topicIds.map(topicOf);
 
   return (
-    <Card variant="outlined">
+    <Card sx={softCardHover}>
       <CardContent>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: { md: 'center' } }}>
-          <Avatar variant="rounded" sx={{ bgcolor: alpha(typeMeta.color, 0.14), color: typeMeta.color, width: 48, height: 48 }}>
-            <typeMeta.icon />
+          <Avatar variant="rounded" sx={{ bgcolor: alpha(ACCENT.violet, 0.14), color: ACCENT.violet, width: 48, height: 48, borderRadius: 2 }}>
+            <GroupsIcon />
           </Avatar>
 
           <Box sx={{ minWidth: 0, flexGrow: 1 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
+              <Chip label={`ทีม ${team.code}`} color={ACCENT.violet} variant="solid" size="sm" />
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-                {task.target}
+                {team.company} — {round.label}
               </Typography>
-              <Chip size="small" label={typeMeta.label} sx={{ bgcolor: alpha(typeMeta.color, 0.12), color: typeMeta.color, fontWeight: 600, height: 20 }} />
+              <Chip label={statusMeta.label} color={statusMeta.color} variant={submitted ? 'soft' : 'solid'} size="sm" icon={statusMeta.icon} />
             </Stack>
             <Typography variant="body2" color="text.secondary" noWrap>
-              {task.subjectCode} · {task.subject} · {task.form}
+              {ORAL_META.subjectCode} · {team.system}
             </Typography>
-            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 0.75 }}>
-              <EventIcon sx={{ fontSize: 15, color: due.color }} />
-              <Typography variant="caption" sx={{ color: due.color, fontWeight: 600 }}>
-                {due.label}
+            <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+              {ownedTopics.map((t) => (
+                <Chip key={t.id} label={`${t.no}. ${t.short}`} color={ACCENT.cyan} variant="outlined" size="sm" />
+              ))}
+            </Stack>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 1 }}>
+              <EventIcon sx={{ fontSize: 15, color: submitted ? 'text.secondary' : due.color }} />
+              <Typography variant="caption" sx={{ color: submitted ? 'text.secondary' : due.color, fontWeight: 600 }}>
+                {submitted ? `ส่งเมื่อ ${dateFmt.format(new Date(ROUND_DUE[round.id]))}` : due.label}
               </Typography>
             </Stack>
           </Box>
 
           <Box sx={{ width: { xs: '100%', md: 180 }, flexShrink: 0 }}>
             <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
-              <Chip
-                size="small"
-                icon={<statusMeta.icon sx={{ fontSize: 16 }} />}
-                label={statusMeta.label}
-                color={statusMeta.color}
-                variant={task.status === 'not_started' ? 'outlined' : 'filled'}
-              />
-              <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                {submitted && task.finalScore != null ? `${task.finalScore}%` : `${progress}%`}
-              </Typography>
+              <Typography variant="caption" color="text.secondary">รับผิดชอบ {task.owned} หัวข้อ</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 700 }}>{progress}%</Typography>
             </Stack>
-            <LinearProgress
-              variant="determinate"
-              value={submitted ? 100 : progress}
-              color={submitted ? 'success' : 'primary'}
-              sx={{ height: 6, borderRadius: 5 }}
-            />
+            <LinearProgress variant="determinate" value={submitted ? 100 : progress} color={submitted ? 'success' : 'primary'} sx={{ height: 6, borderRadius: 5 }} />
           </Box>
 
           <Button
-            variant={submitted ? 'outlined' : 'contained'}
-            color={submitted ? 'inherit' : 'primary'}
-            startIcon={submitted ? <VisibilityIcon /> : task.status === 'in_progress' ? <EditNoteIcon /> : <PlayArrowIcon />}
-            onClick={() => onOpen(task)}
-            sx={{ flexShrink: 0, minWidth: { md: 120 } }}
+            variant={submitted ? 'outlined' : 'solid'}
+            color={ACCENT.violet}
+            startIcon={submitted ? VisibilityIcon : status === 'in_progress' ? EditNoteIcon : PlayArrowIcon}
+            onClick={onOpen}
+            style={{ flexShrink: 0, minWidth: 120 }}
           >
-            {submitted ? 'View' : task.status === 'in_progress' ? 'Continue' : 'Start'}
+            {submitted ? 'ดู' : status === 'in_progress' ? 'ทำต่อ' : 'เริ่มประเมิน'}
           </Button>
         </Stack>
       </CardContent>
@@ -432,24 +396,73 @@ function TaskCard({ task, onOpen }: { task: EvalTask; onOpen: (t: EvalTask) => v
   );
 }
 
-// --- Page -------------------------------------------------------------------
+// --- หน้าเพจ -----------------------------------------------------------------
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'ทุกสถานะ' },
+  { value: 'not_started', label: 'ยังไม่เริ่ม' },
+  { value: 'in_progress', label: 'กำลังทำ' },
+  { value: 'submitted', label: 'ส่งแล้ว' },
+];
+const TEAM_OPTIONS = [
+  { value: 'all', label: 'ทุกทีม' },
+  ...TEAMS.map((t) => ({ value: t.code, label: `ทีม ${t.code} — ${t.company}` })),
+];
+
+const subKey = (teamCode: string, roundId: string, advisorId: string) => `${teamCode}:${roundId}:${advisorId}`;
 
 export default function MyEvaluationsPage() {
-  const [tasks, setTasks] = React.useState<EvalTask[]>(SEED);
-  const [statusFilter, setStatusFilter] = React.useState<'all' | EvalStatus>('all');
-  const [typeFilter, setTypeFilter] = React.useState<'all' | EvalType>('all');
-  const [search, setSearch] = React.useState('');
+  // มุมมองผู้ประเมิน: เลือกว่ากำลังใช้งานในนามของอาจารย์ท่านใด (กำหนดหัวข้อที่เห็น)
+  const [advisorId, setAdvisorId] = React.useState(ADVISORS[0].id);
+  const advisor = ADVISORS.find((a) => a.id === advisorId)!;
 
-  const [active, setActive] = React.useState<EvalTask | null>(null);
-  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [teams, setTeams] = React.useState<Team[]>(TEAMS);
+  // ส่งแล้วหรือยัง คีย์ `${teamCode}:${roundId}:${advisorId}` — วงรอบที่เสร็จถือว่าทุกคนส่งแล้ว
+  const [submitted, setSubmitted] = React.useState<Record<string, boolean>>(() => {
+    const seed: Record<string, boolean> = {};
+    TEAMS.forEach((team) =>
+      team.rounds.forEach((r) => {
+        if (r.status === 'done') ADVISORS.forEach((a) => (seed[subKey(team.code, r.id, a.id)] = true));
+      }),
+    );
+    return seed;
+  });
+
+  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [teamFilter, setTeamFilter] = React.useState('all');
+  const [search, setSearch] = React.useState('');
+  const [open, setOpen] = React.useState<{ team: Team; round: Round } | null>(null);
   const [dialogKey, setDialogKey] = React.useState(0);
+
+  const statusOf = React.useCallback(
+    (team: Team, round: Round): TaskStatus => {
+      if (submitted[subKey(team.code, round.id, advisorId)]) return 'submitted';
+      const anyRated = advisor.topicIds.some((id) => round.results[id]?.score != null);
+      return anyRated ? 'in_progress' : 'not_started';
+    },
+    [submitted, advisorId, advisor],
+  );
+
+  const tasks: Task[] = React.useMemo(
+    () =>
+      teams.flatMap((team) =>
+        team.rounds.map((round) => ({
+          team,
+          round,
+          status: statusOf(team, round),
+          rated: advisor.topicIds.filter((id) => round.results[id]?.score != null).length,
+          owned: advisor.topicIds.length,
+        })),
+      ),
+    [teams, statusOf, advisor],
+  );
 
   const summary = React.useMemo(
     () => ({
-      pending: tasks.filter((t) => t.status === 'not_started').length,
+      todo: tasks.filter((t) => t.status === 'not_started').length,
       inProgress: tasks.filter((t) => t.status === 'in_progress').length,
       submitted: tasks.filter((t) => t.status === 'submitted').length,
-      dueSoon: tasks.filter((t) => t.status !== 'submitted' && dueInfo(t.dueDate).days <= 3).length,
+      teams: new Set(tasks.filter((t) => t.status !== 'submitted').map((t) => t.team.code)).size,
     }),
     [tasks],
   );
@@ -459,141 +472,151 @@ export default function MyEvaluationsPage() {
     return tasks.filter(
       (t) =>
         (statusFilter === 'all' || t.status === statusFilter) &&
-        (typeFilter === 'all' || t.type === typeFilter) &&
+        (teamFilter === 'all' || t.team.code === teamFilter) &&
         (q === '' ||
-          t.target.toLowerCase().includes(q) ||
-          t.subject.toLowerCase().includes(q) ||
-          t.subjectCode.toLowerCase().includes(q)),
+          t.round.label.toLowerCase().includes(q) ||
+          t.team.company.toLowerCase().includes(q) ||
+          t.team.code.toLowerCase().includes(q)),
     );
-  }, [tasks, statusFilter, typeFilter, search]);
+  }, [tasks, statusFilter, teamFilter, search]);
 
-  // Keep `active` set while the dialog animates closed (open toggles separately)
-  // so the exit transition still has content to render — clearing it here would
-  // orphan MUI's modal portal mid-close.
-  const openTask = (task: EvalTask) => {
-    setActive(task);
+  const openTask = (team: Team, round: Round) => {
+    setOpen({ team, round });
     setDialogKey((k) => k + 1);
-    setDialogOpen(true);
-  };
-  const closeDialog = () => setDialogOpen(false);
-
-  const saveDraft = (scores: Record<string, number>, comment: string) => {
-    if (!active) return;
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === active.id
-          ? {
-              ...t,
-              scores,
-              comment,
-              status: t.status === 'submitted' ? t.status : Object.keys(scores).length > 0 ? 'in_progress' : 'not_started',
-            }
-          : t,
-      ),
-    );
-    setDialogOpen(false);
   };
 
-  const submit = (scores: Record<string, number>, comment: string) => {
-    if (!active) return;
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === active.id
-          ? { ...t, scores, comment, status: 'submitted', finalScore: scoreToPct(scores) }
-          : t,
+  const applyDraft = (teamCode: string, roundId: string, draft: Draft) => {
+    setTeams((prev) =>
+      prev.map((team) =>
+        team.code !== teamCode
+          ? team
+          : {
+              ...team,
+              rounds: team.rounds.map((r) => {
+                if (r.id !== roundId) return r;
+                const results = { ...r.results };
+                advisor.topicIds.forEach((id) => {
+                  results[id] = { score: draft.scores[id] ?? null, comment: draft.comments[id] || undefined, evidence: r.results[id]?.evidence };
+                });
+                return { ...r, results };
+              }),
+            },
       ),
     );
-    setDialogOpen(false);
+  };
+
+  const saveDraft = (draft: Draft) => {
+    if (!open) return;
+    applyDraft(open.team.code, open.round.id, draft);
+    setOpen(null);
+  };
+
+  const submit = (draft: Draft) => {
+    if (!open) return;
+    applyDraft(open.team.code, open.round.id, draft);
+    setSubmitted((prev) => ({ ...prev, [subKey(open.team.code, open.round.id, advisorId)]: true }));
+    setOpen(null);
   };
 
   return (
     <Stack spacing={3}>
       <PageHeader
-        title="My Evaluations"
-        description="Evaluations assigned to you — rate each criterion and submit before the deadline."
+        title="งานประเมินของฉัน"
+        description="งานประเมินที่ได้รับมอบหมายให้คุณ — ประเมินหัวข้อที่รับผิดชอบ (หัวข้อเดียวกัน) ให้กับทุกทีมที่ดูแล"
+        actions={
+          <TextField
+            select
+            size="small"
+            label="ประเมินในนามของ"
+            value={advisorId}
+            onChange={(e) => setAdvisorId(e.target.value)}
+            sx={{ minWidth: 230 }}
+          >
+            {ADVISORS.map((a) => (
+              <MenuItem key={a.id} value={a.id}>{a.title} {a.name}</MenuItem>
+            ))}
+          </TextField>
+        }
       />
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="To Do" value={summary.pending} icon={PendingActionsIcon} color={ACCENT.amber} hint="Not started" />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="In Progress" value={summary.inProgress} icon={EditNoteIcon} color={ACCENT.blue} hint="Drafts saved" />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Submitted" value={summary.submitted} icon={CheckCircleIcon} color={ACCENT.green} hint="Completed" />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Due Soon" value={summary.dueSoon} icon={EventIcon} color={ACCENT.pink} hint="Within 3 days" />
-        </Grid>
-      </Grid>
-
-      <Card>
+      {/* อธิบายการเชื่อมโยง: การมอบหมาย → หัวข้อของคุณ × หลายทีม */}
+      <Card sx={[softCard, { bgcolor: (t) => alpha(t.palette.primary.main, 0.03) }]}>
         <CardContent>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            <TextField select size="small" label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} sx={{ minWidth: 160 }}>
-              <MenuItem value="all">All statuses</MenuItem>
-              <MenuItem value="not_started">Not started</MenuItem>
-              <MenuItem value="in_progress">In progress</MenuItem>
-              <MenuItem value="submitted">Submitted</MenuItem>
-            </TextField>
-            <TextField select size="small" label="Type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)} sx={{ minWidth: 150 }}>
-              <MenuItem value="all">All types</MenuItem>
-              {(Object.keys(TYPE_META) as EvalType[]).map((t) => (
-                <MenuItem key={t} value={t}>
-                  {TYPE_META[t].label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Box sx={{ flexGrow: 1 }} />
-            <TextField
-              size="small"
-              placeholder="Search target, subject…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ minWidth: { xs: '100%', md: 280 } }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+            <Chip icon={DynamicFormIcon} label={ORAL_META.formName} color={ACCENT.blue} variant="outlined" size="sm" />
+            <ArrowForwardIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+            <Chip icon={RuleIcon} label="เกณฑ์ 8 หัวข้อ" color={ACCENT.cyan} variant="outlined" size="sm" />
+            <ArrowForwardIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+            <Chip icon={AssignmentIndIcon} label="มอบหมายผู้ประเมิน" color={ACCENT.violet} variant="outlined" size="sm" />
+            <ArrowForwardIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+            <Chip icon={GroupsIcon} label={`หัวข้อของ ${advisor.name} (${advisor.topicIds.length}) × ${TEAMS.length} ทีม`} color={ACCENT.green} variant="soft" size="sm" />
           </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            อาจารย์แต่ละท่านรับผิดชอบหัวข้อเดิมของตัวเอง แล้วประเมินให้กับ <strong>ทุกทีม</strong> ที่ได้รับมอบหมาย
+            (ระบบสร้างงาน 1 งานต่อ 1 ทีม 1 วงรอบ โดยฟอร์มมีเฉพาะหัวข้อที่คุณรับผิดชอบ)
+          </Typography>
         </CardContent>
       </Card>
 
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <KpiCard label="ยังไม่เริ่ม" value={summary.todo} icon={PendingActionsIcon} color={ACCENT.amber} caption={`ค้างอยู่ ${summary.teams} ทีม`} />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <KpiCard label="กำลังทำ" value={summary.inProgress} icon={EditNoteIcon} color={ACCENT.blue} caption="บันทึกร่างไว้" />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <KpiCard label="ส่งแล้ว" value={summary.submitted} icon={CheckCircleIcon} color={ACCENT.green} caption="เสร็จสมบูรณ์" />
+        </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <KpiCard label="ทีมที่ดูแล" value={TEAMS.length} icon={GroupsIcon} color={ACCENT.violet} caption="หัวข้อเดียวกันทุกทีม" />
+        </Grid>
+      </Grid>
+
+      <FilterBar
+        search={{ value: search, onChange: setSearch, placeholder: 'ค้นหาทีม, วงรอบ…' }}
+        filters={[
+          { key: 'team', label: 'ทีม', value: teamFilter, onChange: setTeamFilter, options: TEAM_OPTIONS, minWidth: 210 },
+          { key: 'status', label: 'สถานะ', value: statusFilter, onChange: setStatusFilter, options: STATUS_OPTIONS },
+        ]}
+        onReset={() => {
+          setStatusFilter('all');
+          setTeamFilter('all');
+          setSearch('');
+        }}
+        active={statusFilter !== 'all' || teamFilter !== 'all' || search.trim() !== ''}
+      />
+
       {filtered.length === 0 ? (
-        <Card>
+        <Card sx={softCard}>
           <CardContent>
             <Stack spacing={1} sx={{ alignItems: 'center', py: 6 }}>
               <CheckCircleIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
-              <Typography variant="h6">No evaluations match your filters</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Try clearing the filters or search.
-              </Typography>
+              <Typography variant="h6">ไม่มีงานประเมินที่ตรงกับตัวกรอง</Typography>
+              <Typography variant="body2" color="text.secondary">ลองล้างตัวกรองหรือคำค้นหา</Typography>
             </Stack>
           </CardContent>
         </Card>
       ) : (
         <Stack spacing={2}>
           {filtered.map((task) => (
-            <TaskCard key={task.id} task={task} onOpen={openTask} />
+            <TaskCard key={`${task.team.code}:${task.round.id}`} advisor={advisor} task={task} onOpen={() => openTask(task.team, task.round)} />
           ))}
         </Stack>
       )}
 
-      <EvaluationDialog
-        key={dialogKey}
-        task={active}
-        open={dialogOpen}
-        onClose={closeDialog}
-        onSaveDraft={saveDraft}
-        onSubmit={submit}
-      />
+      {open && (
+        <EvaluationForm
+          key={dialogKey}
+          advisor={advisor}
+          team={open.team}
+          round={open.round}
+          readOnly={statusOf(open.team, open.round) === 'submitted'}
+          onClose={() => setOpen(null)}
+          onSaveDraft={saveDraft}
+          onSubmit={submit}
+        />
+      )}
     </Stack>
   );
 }

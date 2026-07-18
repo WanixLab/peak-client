@@ -9,59 +9,71 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   Grid,
   Stack,
   Typography,
 } from '@mui/material';
-import { alpha } from '@mui/material/styles';
+import { alpha, useTheme, type SxProps, type Theme } from '@mui/material/styles';
+import type { SvgIconComponent } from '@mui/icons-material';
 import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import ScienceIcon from '@mui/icons-material/Science';
 import { useAppSelector } from '@/redux/hooks';
 import { appConfig } from '@/config';
 import QuickActions from '@/components/common/QuickActions';
+import KpiCard from '@/components/common/KpiCard';
 import {
   getHomeContent,
+  getRoleIcon,
   getRoleMeta,
+  PREVIEW_ROLES,
   type HomeActivity,
   type HomeStat,
-  type Trend,
 } from './homeContent';
 
 const noop = () => () => {};
 
+/** เงาแบบซ้อนชั้น ใช้ร่วมกับการ์ด KpiCard/QuickActions ให้พื้นผิวเข้ากัน */
+const SHADOW = {
+  base: '0 1px 3px rgba(15,23,42,0.06), 0 8px 24px -6px rgba(15,23,42,0.12)',
+  baseDark: '0 1px 3px rgba(0,0,0,0.5), 0 10px 26px -6px rgba(0,0,0,0.65)',
+};
+
 /**
- * Time-of-day greeting. Read via `useSyncExternalStore` so the server always
- * renders a neutral value and the client swaps in the local-time greeting after
- * hydration — no mismatch, and no setState-in-effect.
+ * คำทักทายตามช่วงเวลา อ่านผ่าน `useSyncExternalStore` เพื่อให้ฝั่งเซิร์ฟเวอร์
+ * เรนเดอร์ค่ากลาง ๆ เสมอ แล้วฝั่งไคลเอนต์ค่อยสลับเป็นคำทักทายตามเวลาท้องถิ่นหลัง
+ * hydration — ไม่มี mismatch และไม่มีการ setState ใน effect
  */
 function useGreeting() {
   return React.useSyncExternalStore(
     noop,
     () => {
       const hour = new Date().getHours();
-      return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+      return hour < 12 ? 'สวัสดีตอนเช้า' : hour < 18 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
     },
-    () => 'Welcome back',
+    () => 'ยินดีต้อนรับกลับมา',
   );
 }
 
-const trendIcon: Record<Trend, typeof TrendingUpIcon> = {
-  up: TrendingUpIcon,
-  down: TrendingDownIcon,
-  flat: TrendingFlatIcon,
-};
-const trendColor: Record<Trend, string> = {
-  up: 'success.main',
-  down: 'warning.main',
-  flat: 'text.secondary',
-};
+/** รวบรวมทุกบทบาทที่ผู้ใช้คนนี้สามารถดูหน้าแรกผ่านมุมมองนั้นได้ */
+function useUserRoles(): string[] {
+  const user = useAppSelector((state) => state.auth.user);
+  return React.useMemo(() => {
+    const list = user?.roles?.length ? user.roles : user?.role ? [user.role] : [];
+    // ตัดค่าซ้ำโดยคงลำดับไว้ (บทบาทหลักอยู่ต้นสุดเสมอ)
+    return Array.from(new Set(list));
+  }, [user]);
+}
 
-/** A rounded, tinted icon badge reused by every tile. */
-function IconBadge({ icon: Icon, color, size = 44 }: { icon: HomeStat['icon']; color: string; size?: number }) {
+/**
+ * เรนเดอร์ไอคอนของบทบาท โดยรับตัวคอมโพเนนต์ไอคอนผ่าน prop (ไม่ได้สร้างจากการ
+ * เรียกฟังก์ชันภายใน render) เพื่อให้ผ่านกฎ lint ของ compiler
+ */
+function RoleGlyph({ icon: Icon, sx }: { icon: SvgIconComponent; sx?: SxProps<Theme> }) {
+  return <Icon sx={sx} />;
+}
+
+/** ตราไอคอนแบบมุมมน มีพื้นหลังสีอ่อน ใช้ซ้ำในฟีดกิจกรรม */
+function IconBadge({ icon: Icon, color, size = 36 }: { icon: HomeStat['icon']; color: string; size?: number }) {
   return (
     <Avatar
       variant="rounded"
@@ -72,79 +84,189 @@ function IconBadge({ icon: Icon, color, size = 44 }: { icon: HomeStat['icon']; c
   );
 }
 
-/** A KPI card: label, big value, tinted icon, and an optional trend caption. */
-function StatCard({ stat }: { stat: HomeStat }) {
-  const TrendIcon = stat.trend ? trendIcon[stat.trend] : null;
+/** หนึ่งแถวในฟีดกิจกรรมล่าสุด */
+function ActivityRow({ item }: { item: HomeActivity }) {
   return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              {stat.label}
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 700, mt: 0.5, lineHeight: 1.2 }}>
-              {stat.value}
-            </Typography>
+    <Stack
+      direction="row"
+      spacing={1.5}
+      sx={{
+        alignItems: 'flex-start',
+        px: 1,
+        py: 1.25,
+        borderRadius: 2,
+        transition: 'background-color .15s ease',
+        '&:hover': { bgcolor: 'action.hover' },
+      }}
+    >
+      <IconBadge icon={item.icon} color={item.color} />
+      <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+          {item.title}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {item.time}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+/**
+ * ชิปสลับมุมมองในส่วนหัว จะแสดงเมื่อผู้ใช้มีมากกว่าหนึ่งบทบาท
+ * การเลือกบทบาทจะเรนเดอร์แดชบอร์ดทั้งหน้าใหม่ผ่านมุมมองของบทบาทนั้น
+ */
+function RoleSwitcher({
+  roles,
+  active,
+  onChange,
+}: {
+  roles: string[];
+  active: string | undefined;
+  onChange: (role: string) => void;
+}) {
+  return (
+    <Box
+      role="tablist"
+      aria-label="สลับมุมมองบทบาท"
+      sx={{
+        display: 'inline-flex',
+        flexWrap: 'wrap',
+        gap: 0.5,
+        p: 0.5,
+        mb: 2,
+        borderRadius: 999,
+        bgcolor: 'rgba(255,255,255,0.16)',
+      }}
+    >
+      {roles.map((role) => {
+        const meta = getRoleMeta(role);
+        const selected = role === active;
+        return (
+          <Box
+            key={role}
+            component="button"
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(role)}
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.75,
+              px: 1.5,
+              py: 0.75,
+              border: 0,
+              borderRadius: 999,
+              cursor: 'pointer',
+              font: 'inherit',
+              fontSize: 13,
+              fontWeight: 600,
+              transition: 'background-color .2s ease, color .2s ease',
+              color: selected ? meta.color : 'common.white',
+              bgcolor: selected ? 'common.white' : 'transparent',
+              '&:hover': { bgcolor: selected ? 'common.white' : 'rgba(255,255,255,0.14)' },
+              '&:focus-visible': { outline: '2px solid rgba(255,255,255,0.9)', outlineOffset: 2 },
+            }}
+          >
+            <RoleGlyph icon={getRoleIcon(role)} sx={{ fontSize: 16 }} />
+            {meta.label}
           </Box>
-          <IconBadge icon={stat.icon} color={stat.color} />
+        );
+      })}
+    </Box>
+  );
+}
+
+/**
+ * แถบทดลอง (สำหรับสาธิต) ให้กดดูมุมมองของทุกบทบาทได้ ไม่ว่าผู้ใช้ที่ล็อกอินอยู่
+ * จะมีสิทธิ์บทบาทนั้นจริงหรือไม่ — สะดวกต่อการตรวจดูชุดข้อมูลของแต่ละบทบาท
+ */
+function RolePreviewBar({
+  roles,
+  active,
+  onSelect,
+}: {
+  roles: readonly string[];
+  active: string | undefined;
+  onSelect: (role: string) => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Card
+      sx={{
+        p: 1.5,
+        border: 'none',
+        borderRadius: 2,
+        boxShadow: SHADOW.base,
+        ...theme.applyStyles('dark', { boxShadow: SHADOW.baseDark }),
+      }}
+    >
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mr: 1 }}>
+          <ScienceIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            ทดลองมุมมองตามบทบาท
+          </Typography>
         </Stack>
-        {stat.delta && (
-          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 1.5 }}>
-            {TrendIcon && stat.trend && (
-              <TrendIcon fontSize="small" sx={{ color: trendColor[stat.trend] }} />
-            )}
-            <Typography variant="caption" sx={{ color: stat.trend ? trendColor[stat.trend] : 'text.secondary' }}>
-              {stat.delta}
-            </Typography>
-          </Stack>
-        )}
-      </CardContent>
+        {roles.map((role) => {
+          const meta = getRoleMeta(role);
+          const selected = role === active;
+          return (
+            <Button
+              key={role}
+              size="small"
+              disableElevation
+              onClick={() => onSelect(role)}
+              variant={selected ? 'contained' : 'outlined'}
+              startIcon={<RoleGlyph icon={getRoleIcon(role)} sx={{ fontSize: 16 }} />}
+              sx={{
+                borderRadius: 999,
+                textTransform: 'none',
+                ...(selected
+                  ? { bgcolor: meta.color, '&:hover': { bgcolor: meta.color } }
+                  : { color: 'text.primary', borderColor: 'divider' }),
+              }}
+            >
+              {meta.label}
+            </Button>
+          );
+        })}
+      </Stack>
     </Card>
   );
 }
 
-/** A single row in the recent-activity feed. */
-function ActivityRow({ item, divider }: { item: HomeActivity; divider: boolean }) {
-  return (
-    <>
-      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', py: 1.5 }}>
-        <IconBadge icon={item.icon} color={item.color} size={36} />
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            {item.title}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {item.time}
-          </Typography>
-        </Box>
-      </Stack>
-      {divider && <Divider />}
-    </>
-  );
-}
-
 export default function HomePage() {
+  const theme = useTheme();
   const user = useAppSelector((state) => state.auth.user);
   const greeting = useGreeting();
+  const roles = useUserRoles();
 
-  const role = user?.role;
-  const content = getHomeContent(role);
-  const roleMeta = getRoleMeta(role);
+  // มุมมองบทบาทที่กำลังแสดง เก็บ "ตัวที่ถูกเลือก" ไว้ใน state แล้วอนุมานบทบาทที่
+  // ใช้งานระหว่าง render — ค่าเริ่มต้นคือบทบาทหลัก และเมื่อยังไม่เลือกก็ใช้บทบาทแรก
+  // (การล็อกอินใหม่จะ remount หน้านี้ ทำให้ค่ารีเซ็ตเองโดยไม่ต้องใช้ effect)
+  const [viewRole, setViewRole] = React.useState<string | null>(null);
+  const activeRole = viewRole ?? roles[0];
+
+  const multiRole = roles.length > 1;
+  const content = getHomeContent(activeRole);
+  const roleMeta = getRoleMeta(activeRole);
+  const roleIcon = getRoleIcon(activeRole);
 
   return (
     <Stack spacing={3}>
-      {/* Hero: role-aware greeting, role chip, tagline and primary CTA. */}
+      {/* ส่วนหัว: คำทักทายตามบทบาท, ตัวสลับมุมมอง, ข้อความบรรยาย และปุ่มหลัก */}
       <Card
         sx={{
           border: 0,
           color: 'common.white',
           overflow: 'hidden',
           position: 'relative',
-          background: `linear-gradient(120deg, #5B21B6 0%, ${roleMeta.color} 55%, #7C3AED 100%)`,
+          background: `linear-gradient(120deg, #5B21B6 0%, ${roleMeta.color} 58%, #7C3AED 100%)`,
         }}
       >
-        {/* Soft decorative glow in the top-right corner. */}
+        {/* แสงตกแต่งนุ่ม ๆ ที่มุมขวาบน */}
         <Box
           aria-hidden
           sx={{
@@ -164,19 +286,23 @@ export default function HomePage() {
             sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
           >
             <Box sx={{ minWidth: 0 }}>
-              <Chip
-                icon={<VerifiedUserIcon sx={{ color: 'inherit !important' }} />}
-                label={roleMeta.label}
-                size="small"
-                sx={{
-                  color: 'common.white',
-                  bgcolor: 'rgba(255,255,255,0.18)',
-                  fontWeight: 600,
-                  mb: 1.5,
-                }}
-              />
+              {multiRole ? (
+                <RoleSwitcher roles={roles} active={activeRole} onChange={setViewRole} />
+              ) : (
+                <Chip
+                  icon={<RoleGlyph icon={roleIcon} sx={{ color: 'inherit !important' }} />}
+                  label={roleMeta.label}
+                  size="small"
+                  sx={{
+                    color: 'common.white',
+                    bgcolor: 'rgba(255,255,255,0.18)',
+                    fontWeight: 600,
+                    mb: 1.5,
+                  }}
+                />
+              )}
               <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                {greeting}, {user?.name ?? 'User'}
+                {greeting}, {user?.name ?? 'ผู้ใช้'}
               </Typography>
               <Typography sx={{ mt: 1, maxWidth: 620, opacity: 0.9 }}>{content.tagline}</Typography>
               <Button
@@ -195,8 +321,8 @@ export default function HomePage() {
               </Button>
             </Box>
 
-            {/* Large watermark icon (hidden on small screens). */}
-            <Box sx={{ display: { xs: 'none', md: 'flex' }, flexShrink: 0, opacity: 0.9 }}>
+            {/* สัญลักษณ์บทบาทขนาดใหญ่ (ซ่อนบนจอเล็ก) */}
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, flexShrink: 0, opacity: 0.95 }}>
               <Avatar
                 sx={{
                   width: 96,
@@ -205,42 +331,72 @@ export default function HomePage() {
                   color: 'common.white',
                 }}
               >
-                <VerifiedUserIcon sx={{ fontSize: 48 }} />
+                <RoleGlyph icon={roleIcon} sx={{ fontSize: 48 }} />
               </Avatar>
             </Box>
           </Stack>
         </CardContent>
       </Card>
 
-      {/* KPI row — metrics relevant to the current role. */}
-      <Grid container spacing={2}>
-        {content.stats.map((stat) => (
-          <Grid key={stat.id} size={{ xs: 12, sm: 6, md: 3 }}>
-            <StatCard stat={stat} />
-          </Grid>
-        ))}
-      </Grid>
+      {/* แถบทดลองมุมมองตามบทบาท (สำหรับสาธิต) */}
+      <RolePreviewBar roles={PREVIEW_ROLES} active={activeRole} onSelect={setViewRole} />
 
-      {/* Quick actions + recent activity. */}
+      {/* แถว KPI — ตัวชี้วัดที่เกี่ยวข้องกับบทบาทที่กำลังแสดง */}
+      <Box>
+        <Stack
+          direction="row"
+          sx={{ justifyContent: 'space-between', alignItems: 'baseline', mb: 1.5 }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            ภาพรวม
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            มุมมอง{roleMeta.label}
+          </Typography>
+        </Stack>
+        <Grid container spacing={2}>
+          {content.stats.map((stat) => (
+            <Grid key={stat.id} size={{ xs: 12, sm: 6, md: 3 }}>
+              <KpiCard
+                label={stat.label}
+                value={stat.value}
+                icon={stat.icon}
+                color={stat.color}
+                delta={stat.delta}
+                caption={stat.caption}
+                variant="large"
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+
+      {/* ทางลัด + กิจกรรมล่าสุด */}
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 8 }}>
-          <QuickActions actions={content.actions} />
+          <QuickActions actions={content.actions} title="ทางลัด" />
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <Stack spacing={1.5}>
+          <Stack spacing={1.5} sx={{ height: '100%' }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Recent activity
+              กิจกรรมล่าสุด
             </Typography>
-            <Card sx={{ height: '100%' }}>
-              <CardContent sx={{ py: 0.5 }}>
-                {content.activity.map((item, index) => (
-                  <ActivityRow
-                    key={item.id}
-                    item={item}
-                    divider={index < content.activity.length - 1}
-                  />
-                ))}
+            <Card
+              sx={{
+                flexGrow: 1,
+                border: 'none',
+                borderRadius: 2,
+                boxShadow: SHADOW.base,
+                ...theme.applyStyles('dark', { boxShadow: SHADOW.baseDark }),
+              }}
+            >
+              <CardContent sx={{ p: 1 }}>
+                <Stack spacing={0.25}>
+                  {content.activity.map((item) => (
+                    <ActivityRow key={item.id} item={item} />
+                  ))}
+                </Stack>
               </CardContent>
             </Card>
           </Stack>
@@ -248,8 +404,10 @@ export default function HomePage() {
       </Grid>
 
       <Typography variant="caption" color="text.secondary">
-        Showing the {roleMeta.label} view of {appConfig.shortName}. Content adapts to each
-        user&apos;s role.
+        {multiRole
+          ? `คุณมี ${roles.length} บทบาท — สลับมุมมองได้จากปุ่มในส่วนหัว `
+          : ''}
+        กำลังแสดงมุมมอง{roleMeta.label}ของ {appConfig.shortName} เนื้อหาจะปรับตามสิทธิ์ของผู้ใช้แต่ละคน
       </Typography>
     </Stack>
   );

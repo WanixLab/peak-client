@@ -5,10 +5,8 @@ import {
   Alert,
   Avatar,
   Box,
-  Button,
   Card,
   CardContent,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,7 +14,6 @@ import {
   DialogTitle,
   Divider,
   Grid,
-  IconButton,
   InputAdornment,
   LinearProgress,
   MenuItem,
@@ -27,145 +24,44 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import SearchIcon from '@mui/icons-material/Search';
 import RuleIcon from '@mui/icons-material/Rule';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import LinkIcon from '@mui/icons-material/Link';
-import StraightenIcon from '@mui/icons-material/Straighten';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
 import AddIcon from '@mui/icons-material/Add';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ScienceIcon from '@mui/icons-material/Science';
+import DynamicFormIcon from '@mui/icons-material/DynamicForm';
+import GradeIcon from '@mui/icons-material/Grade';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PageHeader from '@/components/common/PageHeader';
-import StatTile from '@/components/common/StatTile';
+import KpiCard from '@/components/common/KpiCard';
+import FilterBar from '@/components/common/FilterBar';
+import Button from '@/components/common/Button';
+import Chip from '@/components/common/Chip';
 import { ACCENT } from '@/theme/accents';
-
-// --- Domain model -----------------------------------------------------------
-
-type Formula = 'weighted' | 'average' | 'sum';
-type RubricStatus = 'active' | 'draft';
-
-interface Criterion {
-  id: string;
-  label: string;
-  weight: number;
-}
-
-interface Rubric {
-  id: string;
-  name: string;
-  linkedForm: string;
-  scaleMax: number;
-  formula: Formula;
-  passThreshold: number; // percentage 0–100
-  status: RubricStatus;
-  criteria: Criterion[];
-}
-
-const FORMULA_META: Record<Formula, { label: string; description: string }> = {
-  weighted: { label: 'Weighted average', description: 'Each criterion contributes proportionally to its weight.' },
-  average: { label: 'Simple average', description: 'Mean of all criteria, weights ignored.' },
-  sum: { label: 'Total sum', description: 'Raw total of all criterion scores.' },
-};
-
-const FORMS = [
-  'Capstone Project Evaluation',
-  'Peer Contribution Review',
-  'Advisor Final Sign-off',
-  'Innovation Pitch Scoring',
-];
+import { softCard, softCardHover } from '@/theme/surfaces';
+import {
+  FORMS,
+  FORMULA_META,
+  RUBRICS,
+  computeScore,
+  getForm,
+  getScorableField,
+  type Formula,
+  type Rubric,
+  type RubricCriterion,
+} from '@/data/formManagement';
 
 let seq = 100;
 const uid = (p: string) => `${p}${(seq += 1)}`;
 
-// --- Seed data --------------------------------------------------------------
-
-const SEED: Rubric[] = [
-  {
-    id: 'r1',
-    name: 'Capstone Scoring Rubric',
-    linkedForm: 'Capstone Project Evaluation',
-    scaleMax: 5,
-    formula: 'weighted',
-    passThreshold: 60,
-    status: 'active',
-    criteria: [
-      { id: 'c1', label: 'Originality & innovation', weight: 30 },
-      { id: 'c2', label: 'Technical execution', weight: 30 },
-      { id: 'c3', label: 'Presentation & delivery', weight: 20 },
-      { id: 'c4', label: 'Documentation', weight: 20 },
-    ],
-  },
-  {
-    id: 'r2',
-    name: 'Peer Contribution Weights',
-    linkedForm: 'Peer Contribution Review',
-    scaleMax: 5,
-    formula: 'average',
-    passThreshold: 50,
-    status: 'active',
-    criteria: [
-      { id: 'c1', label: 'Collaboration', weight: 25 },
-      { id: 'c2', label: 'Reliability', weight: 25 },
-      { id: 'c3', label: 'Contribution', weight: 50 },
-    ],
-  },
-  {
-    id: 'r3',
-    name: 'Advisor Final Score',
-    linkedForm: 'Advisor Final Sign-off',
-    scaleMax: 10,
-    formula: 'weighted',
-    passThreshold: 70,
-    status: 'active',
-    criteria: [
-      { id: 'c1', label: 'Objectives met', weight: 40 },
-      { id: 'c2', label: 'Methodology', weight: 35 },
-      { id: 'c3', label: 'Impact', weight: 25 },
-    ],
-  },
-  {
-    id: 'r4',
-    name: 'Pitch Quick-score',
-    linkedForm: 'Innovation Pitch Scoring',
-    scaleMax: 5,
-    formula: 'sum',
-    passThreshold: 60,
-    status: 'draft',
-    criteria: [
-      { id: 'c1', label: 'Problem–solution fit', weight: 50 },
-      { id: 'c2', label: 'Market potential', weight: 50 },
-    ],
-  },
-];
-
-// --- Scoring engine ---------------------------------------------------------
-
-/** Returns a normalized 0–100 percentage plus the raw value for a rubric + scores. */
-function computeScore(rubric: Rubric, scores: Record<string, number>) {
-  const { criteria, scaleMax, formula } = rubric;
-  if (criteria.length === 0) return { percent: 0, raw: 0 };
-  const valueOf = (c: Criterion) => scores[c.id] ?? 0;
-
-  if (formula === 'sum') {
-    const raw = criteria.reduce((s, c) => s + valueOf(c), 0);
-    const max = criteria.length * scaleMax;
-    return { percent: max === 0 ? 0 : (raw / max) * 100, raw };
-  }
-  if (formula === 'average') {
-    const avg = criteria.reduce((s, c) => s + valueOf(c), 0) / criteria.length;
-    return { percent: (avg / scaleMax) * 100, raw: avg };
-  }
-  // weighted
-  const totalWeight = criteria.reduce((s, c) => s + c.weight, 0) || 1;
-  const weighted = criteria.reduce((s, c) => s + (valueOf(c) / scaleMax) * c.weight, 0) / totalWeight;
-  return { percent: weighted * 100, raw: weighted * scaleMax };
-}
-
-// --- Rubric card ------------------------------------------------------------
+// --- การ์ดเกณฑ์ -------------------------------------------------------------
 
 function RubricCard({
   rubric,
@@ -178,50 +74,68 @@ function RubricCard({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
+  const form = getForm(rubric.formId);
   const totalWeight = rubric.criteria.reduce((s, c) => s + c.weight, 0);
   const weightOk = rubric.formula !== 'weighted' || totalWeight === 100;
+  const unmapped = rubric.criteria.filter((c) => !getScorableField(form, c.fieldId)).length;
 
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', '&:hover': { borderColor: 'primary.main' }, transition: 'border-color .15s' }}>
+    <Card sx={[softCardHover, { height: '100%', display: 'flex', flexDirection: 'column' }]}>
       <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', mb: 1.5 }}>
-          <Avatar variant="rounded" sx={{ bgcolor: alpha(ACCENT.violet, 0.14), color: ACCENT.violet, width: 44, height: 44 }}>
+          <Avatar variant="rounded" sx={{ bgcolor: alpha(ACCENT.violet, 0.14), color: ACCENT.violet, width: 44, height: 44, borderRadius: 2 }}>
             <RuleIcon />
           </Avatar>
           <Box sx={{ minWidth: 0, flexGrow: 1 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.25 }}>{rubric.name}</Typography>
             <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 0.25, color: 'text.secondary' }}>
-              <LinkIcon sx={{ fontSize: 14 }} />
-              <Typography variant="caption" noWrap>{rubric.linkedForm}</Typography>
+              <DynamicFormIcon sx={{ fontSize: 14 }} />
+              <Typography variant="caption" noWrap>{form?.name ?? 'ยังไม่ผูกแบบฟอร์ม'}</Typography>
             </Stack>
           </Box>
           <Chip
-            size="small"
-            label={rubric.status === 'active' ? 'Active' : 'Draft'}
-            color={rubric.status === 'active' ? 'success' : 'default'}
-            variant={rubric.status === 'active' ? 'filled' : 'outlined'}
+            label={rubric.status === 'active' ? 'ใช้งาน' : 'ฉบับร่าง'}
+            color={rubric.status === 'active' ? ACCENT.green : ACCENT.violet}
+            variant={rubric.status === 'active' ? 'solid' : 'soft'}
+            size="sm"
           />
         </Stack>
 
         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 2 }}>
-          <Chip size="small" icon={<StraightenIcon sx={{ fontSize: 15 }} />} label={`Scale 1–${rubric.scaleMax}`} variant="outlined" />
-          <Chip size="small" icon={<FunctionsIcon sx={{ fontSize: 15 }} />} label={FORMULA_META[rubric.formula].label} variant="outlined" />
-          <Chip size="small" icon={<CheckCircleIcon sx={{ fontSize: 15 }} />} label={`Pass ≥ ${rubric.passThreshold}%`} variant="outlined" />
+          <Chip icon={FunctionsIcon} label={FORMULA_META[rubric.formula].label} color={ACCENT.blue} variant="outlined" size="sm" />
+          <Chip icon={CheckCircleIcon} label={`ผ่าน ≥ ${rubric.passThreshold}%`} color={ACCENT.green} variant="outlined" size="sm" />
+          {unmapped > 0 && (
+            <Chip icon={LinkOffIcon} label={`ยังไม่ผูก ${unmapped}`} color={ACCENT.amber} variant="soft" size="sm" />
+          )}
         </Stack>
 
         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-          {rubric.criteria.length} CRITERIA
+          {rubric.criteria.length} เกณฑ์ → ช่อง
         </Typography>
         <Stack spacing={0.75} sx={{ mt: 1, mb: 2 }}>
-          {rubric.criteria.map((c) => (
-            <Box key={c.id}>
-              <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.25 }}>
-                <Typography variant="caption" noWrap sx={{ maxWidth: '75%' }}>{c.label}</Typography>
-                <Typography variant="caption" sx={{ fontWeight: 700 }}>{c.weight}%</Typography>
-              </Stack>
-              <LinearProgress variant="determinate" value={c.weight} sx={{ height: 5, borderRadius: 5 }} />
-            </Box>
-          ))}
+          {rubric.criteria.map((c) => {
+            const field = getScorableField(form, c.fieldId);
+            return (
+              <Box key={c.id}>
+                <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'space-between', mb: 0.25, alignItems: 'center' }}>
+                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+                    <Typography variant="caption" noWrap sx={{ maxWidth: 140 }}>{c.label}</Typography>
+                    {field ? (
+                      <Tooltip title={`อ่านค่าจาก "${field.label}" (สเกล 1–${field.scaleMax})`}>
+                        <LinkIcon sx={{ fontSize: 13, color: 'success.main', flexShrink: 0 }} />
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title="ยังไม่ผูกช่องในแบบฟอร์ม — ไม่ถูกนำมาคิดคะแนน">
+                        <LinkOffIcon sx={{ fontSize: 13, color: 'warning.main', flexShrink: 0 }} />
+                      </Tooltip>
+                    )}
+                  </Stack>
+                  <Typography variant="caption" sx={{ fontWeight: 700 }}>{c.weight}%</Typography>
+                </Stack>
+                <LinearProgress variant="determinate" value={c.weight} sx={{ height: 5, borderRadius: 5 }} />
+              </Box>
+            );
+          })}
         </Stack>
 
         <Box sx={{ flexGrow: 1 }} />
@@ -229,22 +143,22 @@ function RubricCard({
         {rubric.formula === 'weighted' && (
           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 1.5 }}>
             <Typography variant="caption" color={weightOk ? 'text.secondary' : 'error.main'} sx={{ fontWeight: 600 }}>
-              Total weight: {totalWeight}%
+              น้ำหนักรวม: {totalWeight}%
             </Typography>
-            {!weightOk && <Typography variant="caption" color="error.main">(should be 100%)</Typography>}
+            {!weightOk && <Typography variant="caption" color="error.main">(ควรเป็น 100%)</Typography>}
           </Stack>
         )}
 
         <Divider sx={{ mb: 1.5 }} />
-        <Stack direction="row" spacing={1}>
-          <Button fullWidth variant="contained" size="small" startIcon={<EditIcon />} onClick={onEdit}>
-            Configure
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Button variant="solid" color={ACCENT.violet} startIcon={EditIcon} onClick={onEdit} fullWidth>
+            ตั้งค่า
           </Button>
-          <Tooltip title="Duplicate">
-            <IconButton size="small" onClick={onDuplicate}><ContentCopyIcon fontSize="small" /></IconButton>
+          <Tooltip title="ทำสำเนา">
+            <Button variant="ghost" color={ACCENT.violet} iconOnly onClick={onDuplicate}><ContentCopyIcon sx={{ fontSize: 18 }} /></Button>
           </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" onClick={onDelete}><DeleteOutlineIcon fontSize="small" /></IconButton>
+          <Tooltip title="ลบ">
+            <Button variant="ghost" color={ACCENT.pink} iconOnly onClick={onDelete}><DeleteOutlineIcon sx={{ fontSize: 18 }} /></Button>
           </Tooltip>
         </Stack>
       </CardContent>
@@ -252,21 +166,17 @@ function RubricCard({
   );
 }
 
-// --- Rubric editor with live preview ---------------------------------------
+// --- ตัวแก้ไขเกณฑ์ พร้อมพรีวิวสด --------------------------------------------
 
-const EMPTY_RUBRIC: Rubric = {
+const makeEmptyRubric = (): Rubric => ({
   id: '',
   name: '',
-  linkedForm: FORMS[0],
-  scaleMax: 5,
+  formId: FORMS[0].id,
   formula: 'weighted',
   passThreshold: 60,
   status: 'draft',
-  criteria: [
-    { id: 'c1', label: 'Criterion 1', weight: 50 },
-    { id: 'c2', label: 'Criterion 2', weight: 50 },
-  ],
-};
+  criteria: [],
+});
 
 function RubricEditor({
   open,
@@ -279,34 +189,53 @@ function RubricEditor({
   onClose: () => void;
   onSave: (rubric: Rubric) => void;
 }) {
-  const [draft, setDraft] = React.useState<Rubric>(initial ?? EMPTY_RUBRIC);
-  const [sample, setSample] = React.useState<Record<string, number>>(() =>
-    Object.fromEntries((initial ?? EMPTY_RUBRIC).criteria.map((c) => [c.id, (initial ?? EMPTY_RUBRIC).scaleMax])),
-  );
+  const [draft, setDraft] = React.useState<Rubric>(initial ?? makeEmptyRubric());
+  const form = getForm(draft.formId);
+  // คำตอบตัวอย่าง คีย์ด้วย field id — ป้อนเข้าการคำนวณสด
+  const [sample, setSample] = React.useState<Record<string, number>>(() => {
+    const f = getForm((initial ?? makeEmptyRubric()).formId);
+    return Object.fromEntries((f?.scorableFields ?? []).map((sf) => [sf.id, sf.scaleMax]));
+  });
 
   const totalWeight = draft.criteria.reduce((s, c) => s + c.weight, 0);
   const weightOk = draft.formula !== 'weighted' || totalWeight === 100;
-  const result = computeScore(draft, sample);
+  const result = computeScore(draft, form, sample);
   const passed = result.percent >= draft.passThreshold;
 
   const setField = <K extends keyof Rubric>(key: K, value: Rubric[K]) => setDraft((d) => ({ ...d, [key]: value }));
 
-  const setCriterion = (id: string, patch: Partial<Criterion>) =>
+  const setCriterion = (id: string, patch: Partial<RubricCriterion>) =>
     setDraft((d) => ({ ...d, criteria: d.criteria.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
 
-  const addCriterion = () => {
-    const id = uid('c');
-    setDraft((d) => ({ ...d, criteria: [...d.criteria, { id, label: `Criterion ${d.criteria.length + 1}`, weight: 0 }] }));
-    setSample((s) => ({ ...s, [id]: draft.scaleMax }));
+  // เปลี่ยนแบบฟอร์มทำให้การผูกช่องเดิมใช้ไม่ได้ — ล้างการผูก
+  const chooseForm = (formId: string) => {
+    setDraft((d) => ({ ...d, formId, criteria: d.criteria.map((c) => ({ ...c, fieldId: undefined })) }));
+    const f = getForm(formId);
+    setSample(Object.fromEntries((f?.scorableFields ?? []).map((sf) => [sf.id, sf.scaleMax])));
   };
 
-  const removeCriterion = (id: string) => {
+  const addCriterion = () => {
+    setDraft((d) => ({ ...d, criteria: [...d.criteria, { id: uid('rc'), label: `เกณฑ์ ${d.criteria.length + 1}`, weight: 0 }] }));
+  };
+
+  const removeCriterion = (id: string) =>
     setDraft((d) => ({ ...d, criteria: d.criteria.filter((c) => c.id !== id) }));
-    setSample((s) => {
-      const next = { ...s };
-      delete next[id];
-      return next;
-    });
+
+  // สร้างเกณฑ์ 1 ข้อต่อ 1 ช่องที่ให้คะแนนได้ พร้อมผูกช่องและแบ่งน้ำหนักเท่ากัน
+  const generateFromFields = () => {
+    const fields = form?.scorableFields ?? [];
+    if (fields.length === 0) return;
+    const base = Math.floor(100 / fields.length);
+    const remainder = 100 - base * fields.length;
+    setDraft((d) => ({
+      ...d,
+      criteria: fields.map((f, i) => ({
+        id: uid('rc'),
+        label: f.label,
+        weight: base + (i < remainder ? 1 : 0),
+        fieldId: f.id,
+      })),
+    }));
   };
 
   const distributeEvenly = () => {
@@ -326,15 +255,15 @@ function RubricEditor({
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" scroll="paper">
       <DialogTitle sx={{ pb: 1 }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <Avatar variant="rounded" sx={{ bgcolor: alpha(ACCENT.violet, 0.14), color: ACCENT.violet }}>
+          <Avatar variant="rounded" sx={{ bgcolor: alpha(ACCENT.violet, 0.14), color: ACCENT.violet, borderRadius: 2 }}>
             <RuleIcon />
           </Avatar>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-              {initial ? 'Configure rubric' : 'New rubric'}
+              {initial ? 'ตั้งค่าเกณฑ์' : 'เกณฑ์ใหม่'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Set criteria, weights, scoring formula and the pass threshold.
+              ผูกแต่ละเกณฑ์กับช่องในแบบฟอร์ม กำหนดน้ำหนักและสูตร แล้วดูคะแนนคำนวณสด
             </Typography>
           </Box>
         </Stack>
@@ -342,112 +271,156 @@ function RubricEditor({
 
       <DialogContent dividers>
         <Grid container spacing={3}>
-          {/* Config + criteria */}
+          {/* ตั้งค่า + เกณฑ์ */}
           <Grid size={{ xs: 12, md: 7 }}>
             <Stack spacing={2}>
-              <TextField label="Rubric name" size="small" fullWidth value={draft.name} onChange={(e) => setField('name', e.target.value)} placeholder="e.g. Capstone Scoring Rubric" />
+              <TextField label="ชื่อเกณฑ์" size="small" fullWidth value={draft.name} onChange={(e) => setField('name', e.target.value)} placeholder="เช่น เกณฑ์ให้คะแนนโปรเจกต์จบ" />
+
+              <TextField
+                select
+                label="แบบฟอร์มที่ผูก"
+                size="small"
+                fullWidth
+                value={draft.formId}
+                onChange={(e) => chooseForm(e.target.value)}
+                helperText={form ? `มี ${form.scorableFields.length} ช่องที่ให้คะแนนได้ให้ผูก` : undefined}
+              >
+                {FORMS.map((f) => (
+                  <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+                ))}
+              </TextField>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField select label="Linked form" size="small" fullWidth value={draft.linkedForm} onChange={(e) => setField('linkedForm', e.target.value)}>
-                  {FORMS.map((f) => (
-                    <MenuItem key={f} value={f}>{f}</MenuItem>
-                  ))}
-                </TextField>
-                <TextField select label="Score scale" size="small" fullWidth value={draft.scaleMax} onChange={(e) => setField('scaleMax', Number(e.target.value))}>
-                  <MenuItem value={3}>1 – 3</MenuItem>
-                  <MenuItem value={5}>1 – 5</MenuItem>
-                  <MenuItem value={10}>1 – 10</MenuItem>
-                  <MenuItem value={100}>0 – 100</MenuItem>
-                </TextField>
-              </Stack>
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField select label="Formula" size="small" fullWidth value={draft.formula} onChange={(e) => setField('formula', e.target.value as Formula)} helperText={FORMULA_META[draft.formula].description}>
+                <TextField select label="สูตรคำนวณ" size="small" fullWidth value={draft.formula} onChange={(e) => setField('formula', e.target.value as Formula)} helperText={FORMULA_META[draft.formula].description}>
                   {(Object.keys(FORMULA_META) as Formula[]).map((f) => (
                     <MenuItem key={f} value={f}>{FORMULA_META[f].label}</MenuItem>
                   ))}
                 </TextField>
                 <TextField
-                  label="Pass threshold"
+                  label="เกณฑ์ผ่าน"
                   size="small"
                   type="number"
                   fullWidth
                   value={draft.passThreshold}
                   onChange={(e) => setField('passThreshold', Math.max(0, Math.min(100, Number(e.target.value))))}
                   slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
-                  helperText="Minimum score to pass."
+                  helperText="คะแนนขั้นต่ำที่ถือว่าผ่าน"
                 />
               </Stack>
 
               <Divider />
 
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Criteria</Typography>
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>เกณฑ์ → ช่องในแบบฟอร์ม</Typography>
                 <Stack direction="row" spacing={1}>
+                  <Button size="sm" variant="soft" color={ACCENT.violet} startIcon={AutoAwesomeIcon} onClick={generateFromFields}>สร้างจากช่อง</Button>
                   {draft.formula === 'weighted' && (
-                    <Button size="small" color="inherit" onClick={distributeEvenly}>Distribute evenly</Button>
+                    <Button size="sm" variant="ghost" color={ACCENT.violet} onClick={distributeEvenly}>กระจายน้ำหนัก</Button>
                   )}
-                  <Button size="small" startIcon={<AddIcon />} onClick={addCriterion}>Add criterion</Button>
+                  <Button size="sm" variant="ghost" color={ACCENT.violet} startIcon={AddIcon} onClick={addCriterion}>เพิ่ม</Button>
                 </Stack>
               </Stack>
 
-              <Stack spacing={1}>
-                {draft.criteria.map((c) => (
-                  <Stack key={c.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <TextField size="small" fullWidth value={c.label} onChange={(e) => setCriterion(c.id, { label: e.target.value })} />
-                    <TextField
-                      size="small"
-                      type="number"
-                      value={c.weight}
-                      onChange={(e) => setCriterion(c.id, { weight: Math.max(0, Number(e.target.value)) })}
-                      disabled={draft.formula === 'average'}
-                      sx={{ width: 110 }}
-                      slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
-                    />
-                    <IconButton size="small" disabled={draft.criteria.length <= 1} onClick={() => removeCriterion(c.id)}>
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                ))}
-              </Stack>
+              {draft.criteria.length === 0 ? (
+                <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 2, py: 3, textAlign: 'center', color: 'text.secondary' }}>
+                  <Typography variant="body2">
+                    ยังไม่มีเกณฑ์ — กด “สร้างจากช่อง” เพื่อสร้าง 1 เกณฑ์ต่อ 1 ช่องอัตโนมัติ
+                  </Typography>
+                </Box>
+              ) : (
+                <Stack spacing={1}>
+                  {draft.criteria.map((c) => {
+                    const mappedField = getScorableField(form, c.fieldId);
+                    return (
+                      <Stack key={c.id} direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+                        <TextField size="small" fullWidth label="เกณฑ์" value={c.label} onChange={(e) => setCriterion(c.id, { label: e.target.value })} />
+                        <TextField
+                          select
+                          size="small"
+                          label="ผูกกับช่อง"
+                          value={c.fieldId ?? ''}
+                          onChange={(e) => setCriterion(c.id, { fieldId: e.target.value || undefined })}
+                          sx={{ minWidth: { sm: 190 }, width: { xs: '100%', sm: 'auto' } }}
+                          error={!mappedField}
+                        >
+                          <MenuItem value=""><em>— ยังไม่ผูก —</em></MenuItem>
+                          {(form?.scorableFields ?? []).map((f) => (
+                            <MenuItem key={f.id} value={f.id}>{f.label}</MenuItem>
+                          ))}
+                        </TextField>
+                        <TextField
+                          size="small"
+                          type="number"
+                          label="น้ำหนัก"
+                          value={c.weight}
+                          onChange={(e) => setCriterion(c.id, { weight: Math.max(0, Number(e.target.value)) })}
+                          disabled={draft.formula === 'average'}
+                          sx={{ width: { xs: '100%', sm: 110 } }}
+                          slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
+                        />
+                        <Tooltip title="ลบเกณฑ์">
+                          <Button variant="ghost" color={ACCENT.pink} iconOnly onClick={() => removeCriterion(c.id)}>
+                            <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                          </Button>
+                        </Tooltip>
+                      </Stack>
+                    );
+                  })}
+                </Stack>
+              )}
 
-              {draft.formula === 'weighted' && !weightOk && (
+              {draft.formula === 'weighted' && draft.criteria.length > 0 && !weightOk && (
                 <Alert severity="warning" sx={{ py: 0.25 }}>
-                  Weights total {totalWeight}% — adjust to exactly 100% before saving.
+                  น้ำหนักรวม {totalWeight}% — ปรับให้ครบ 100% ก่อนบันทึก
+                </Alert>
+              )}
+              {result.unmapped > 0 && (
+                <Alert severity="info" icon={<LinkOffIcon fontSize="inherit" />} sx={{ py: 0.25 }}>
+                  มี {result.unmapped} เกณฑ์ที่ยังไม่ผูกช่อง จะไม่ถูกนำมาคิดคะแนน
                 </Alert>
               )}
             </Stack>
           </Grid>
 
-          {/* Live preview */}
+          {/* พรีวิวการคำนวณสด */}
           <Grid size={{ xs: 12, md: 5 }}>
             <Card variant="outlined" sx={{ position: { md: 'sticky' }, top: { md: 0 }, bgcolor: (t) => alpha(t.palette.primary.main, 0.03) }}>
               <CardContent>
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
                   <ScienceIcon fontSize="small" color="primary" />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Live calculation preview</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>ตัวอย่างการคำนวณสด</Typography>
+                </Stack>
+                <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 2, color: 'text.secondary' }}>
+                  <DynamicFormIcon sx={{ fontSize: 14 }} />
+                  <Typography variant="caption">{form?.name}</Typography>
+                  <ArrowForwardIcon sx={{ fontSize: 13 }} />
+                  <GradeIcon sx={{ fontSize: 14 }} />
+                  <Typography variant="caption">คะแนน</Typography>
                 </Stack>
 
                 <Stack spacing={2.5}>
-                  {draft.criteria.map((c) => (
-                    <Box key={c.id}>
-                      <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="body2" noWrap sx={{ maxWidth: '70%' }}>{c.label}</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                          {sample[c.id] ?? 0}<Box component="span" sx={{ color: 'text.disabled' }}>/{draft.scaleMax}</Box>
-                        </Typography>
-                      </Stack>
-                      <Slider
-                        size="small"
-                        min={0}
-                        max={draft.scaleMax}
-                        step={draft.scaleMax > 10 ? 5 : 1}
-                        value={sample[c.id] ?? 0}
-                        onChange={(_, v) => setSample((s) => ({ ...s, [c.id]: v as number }))}
-                        valueLabelDisplay="auto"
-                      />
-                    </Box>
-                  ))}
+                  {(form?.scorableFields ?? []).map((f) => {
+                    const usedBy = draft.criteria.filter((c) => c.fieldId === f.id);
+                    return (
+                      <Box key={f.id} sx={{ opacity: usedBy.length ? 1 : 0.5 }}>
+                        <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="body2" noWrap sx={{ maxWidth: '70%' }}>{f.label}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            {sample[f.id] ?? 0}<Box component="span" sx={{ color: 'text.disabled' }}>/{f.scaleMax}</Box>
+                          </Typography>
+                        </Stack>
+                        <Slider
+                          size="small"
+                          min={0}
+                          max={f.scaleMax}
+                          step={f.scaleMax > 10 ? 5 : 1}
+                          value={sample[f.id] ?? 0}
+                          onChange={(_, v) => setSample((s) => ({ ...s, [f.id]: v as number }))}
+                          valueLabelDisplay="auto"
+                        />
+                      </Box>
+                    );
+                  })}
                 </Stack>
 
                 <Divider sx={{ my: 2 }} />
@@ -462,19 +435,19 @@ function RubricEditor({
                     borderColor: passed ? 'success.main' : 'error.main',
                   }}
                 >
-                  <Typography variant="caption" color="text.secondary">Computed score</Typography>
+                  <Typography variant="caption" color="text.secondary">คะแนนที่คำนวณได้</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 800, lineHeight: 1.1, color: passed ? 'success.main' : 'error.main' }}>
                     {result.percent.toFixed(1)}%
                   </Typography>
                   <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'center', alignItems: 'center', mt: 0.5 }}>
                     {passed ? <CheckCircleIcon fontSize="small" color="success" /> : <CancelIcon fontSize="small" color="error" />}
                     <Typography variant="body2" sx={{ fontWeight: 700, color: passed ? 'success.main' : 'error.main' }}>
-                      {passed ? 'Pass' : 'Fail'} · threshold {draft.passThreshold}%
+                      {passed ? 'ผ่าน' : 'ไม่ผ่าน'} · เกณฑ์ {draft.passThreshold}%
                     </Typography>
                   </Stack>
                   {draft.formula === 'sum' && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                      Raw total: {result.raw} / {draft.criteria.length * draft.scaleMax}
+                      ผลรวมดิบ: {result.raw}
                     </Typography>
                   )}
                 </Box>
@@ -485,19 +458,25 @@ function RubricEditor({
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button color="inherit" onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={!canSave} onClick={() => onSave({ ...draft, id: draft.id || uid('r') })}>
-          Save rubric
+        <Button variant="ghost" color={ACCENT.violet} onClick={onClose}>ยกเลิก</Button>
+        <Button variant="solid" color={ACCENT.violet} disabled={!canSave} onClick={() => onSave({ ...draft, id: draft.id || uid('rubric-') })}>
+          บันทึกเกณฑ์
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
 
-// --- Page -------------------------------------------------------------------
+// --- หน้าเพจ -----------------------------------------------------------------
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'ทุกสถานะ' },
+  { value: 'active', label: 'ใช้งาน' },
+  { value: 'draft', label: 'ฉบับร่าง' },
+];
 
 export default function RubricConfigPage() {
-  const [rubrics, setRubrics] = React.useState<Rubric[]>(SEED);
+  const [rubrics, setRubrics] = React.useState<Rubric[]>(RUBRICS);
   const [search, setSearch] = React.useState('');
   const [formFilter, setFormFilter] = React.useState('all');
   const [status, setStatus] = React.useState('all');
@@ -509,10 +488,14 @@ export default function RubricConfigPage() {
 
   const summary = React.useMemo(() => {
     const totalCriteria = rubrics.reduce((s, r) => s + r.criteria.length, 0);
+    const mapped = rubrics.reduce(
+      (s, r) => s + r.criteria.filter((c) => getScorableField(getForm(r.formId), c.fieldId)).length,
+      0,
+    );
     return {
       total: rubrics.length,
-      avgCriteria: rubrics.length ? (totalCriteria / rubrics.length).toFixed(1) : '0',
-      linkedForms: new Set(rubrics.map((r) => r.linkedForm)).size,
+      coverage: totalCriteria ? Math.round((mapped / totalCriteria) * 100) : 0,
+      linkedForms: new Set(rubrics.map((r) => r.formId)).size,
       active: rubrics.filter((r) => r.status === 'active').length,
     };
   }, [rubrics]);
@@ -521,11 +504,18 @@ export default function RubricConfigPage() {
     const q = search.trim().toLowerCase();
     return rubrics.filter(
       (r) =>
-        (formFilter === 'all' || r.linkedForm === formFilter) &&
+        (formFilter === 'all' || r.formId === formFilter) &&
         (status === 'all' || r.status === status) &&
-        (q === '' || r.name.toLowerCase().includes(q) || r.linkedForm.toLowerCase().includes(q)),
+        (q === '' || r.name.toLowerCase().includes(q) || (getForm(r.formId)?.name ?? '').toLowerCase().includes(q)),
     );
   }, [rubrics, search, formFilter, status]);
+
+  const filtersActive = formFilter !== 'all' || status !== 'all' || search.trim() !== '';
+  const resetFilters = () => {
+    setFormFilter('all');
+    setStatus('all');
+    setSearch('');
+  };
 
   const openNew = () => {
     setEditing(null);
@@ -544,83 +534,63 @@ export default function RubricConfigPage() {
   };
 
   const duplicate = (r: Rubric) =>
-    setRubrics((prev) => [...prev, { ...r, id: uid('r'), name: `${r.name} (copy)`, status: 'draft' }]);
+    setRubrics((prev) => [...prev, { ...r, id: uid('rubric-'), name: `${r.name} (สำเนา)`, status: 'draft' }]);
 
   const handleDelete = () => {
     if (toDelete) setRubrics((prev) => prev.filter((r) => r.id !== toDelete.id));
     setToDelete(null);
   };
 
+  const FORM_OPTIONS = [
+    { value: 'all', label: 'ทุกแบบฟอร์ม' },
+    ...FORMS.map((f) => ({ value: f.id, label: f.name })),
+  ];
+
   return (
     <Stack spacing={3}>
       <PageHeader
-        title="Rubric Config"
-        description="Define scoring criteria, weights, formulas and pass thresholds, then link them to forms."
+        title="เกณฑ์ให้คะแนน"
+        description="ผูกช่องในแบบฟอร์มกับเกณฑ์ที่ถ่วงน้ำหนัก เลือกสูตรและเกณฑ์ผ่าน — นี่คือสิ่งที่เปลี่ยนคำตอบให้เป็นคะแนน"
         actions={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>
-            New rubric
+          <Button variant="solid" color={ACCENT.violet} startIcon={AddIcon} onClick={openNew}>
+            เกณฑ์ใหม่
           </Button>
         }
       />
 
       <Grid container spacing={2}>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Rubrics" value={summary.total} icon={RuleIcon} color={ACCENT.violet} />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="เกณฑ์ทั้งหมด" value={summary.total} icon={RuleIcon} color={ACCENT.violet} />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Avg. Criteria" value={summary.avgCriteria} icon={StraightenIcon} color={ACCENT.blue} hint="Per rubric" />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="ความครอบคลุมช่อง" value={`${summary.coverage}%`} icon={LinkIcon} color={ACCENT.blue} caption="เกณฑ์ที่ผูกช่องแล้ว" />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Linked Forms" value={summary.linkedForms} icon={LinkIcon} color={ACCENT.cyan} />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="แบบฟอร์มที่ผูก" value={summary.linkedForms} icon={DynamicFormIcon} color={ACCENT.cyan} />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Active" value={summary.active} icon={CheckCircleIcon} color={ACCENT.green} />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <KpiCard label="ใช้งานอยู่" value={summary.active} icon={CheckCircleIcon} color={ACCENT.green} />
         </Grid>
       </Grid>
 
-      <Card>
-        <CardContent>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            <TextField select size="small" label="Linked form" value={formFilter} onChange={(e) => setFormFilter(e.target.value)} sx={{ minWidth: 220 }}>
-              <MenuItem value="all">All forms</MenuItem>
-              {FORMS.map((f) => (
-                <MenuItem key={f} value={f}>{f}</MenuItem>
-              ))}
-            </TextField>
-            <TextField select size="small" label="Status" value={status} onChange={(e) => setStatus(e.target.value)} sx={{ minWidth: 150 }}>
-              <MenuItem value="all">All</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="draft">Draft</MenuItem>
-            </TextField>
-            <Box sx={{ flexGrow: 1 }} />
-            <TextField
-              size="small"
-              placeholder="Search rubric…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ minWidth: { xs: '100%', md: 260 } }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-          </Stack>
-        </CardContent>
-      </Card>
+      <FilterBar
+        search={{ value: search, onChange: setSearch, placeholder: 'ค้นหาเกณฑ์…' }}
+        filters={[
+          { key: 'form', label: 'แบบฟอร์ม', value: formFilter, onChange: setFormFilter, options: FORM_OPTIONS, minWidth: 200 },
+          { key: 'status', label: 'สถานะ', value: status, onChange: setStatus, options: STATUS_OPTIONS },
+        ]}
+        onReset={resetFilters}
+        active={filtersActive}
+      />
 
       {filtered.length === 0 ? (
-        <Card>
+        <Card sx={softCard}>
           <CardContent>
             <Stack spacing={1} sx={{ alignItems: 'center', py: 6 }}>
               <RuleIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
-              <Typography variant="h6">No rubrics match your filters</Typography>
+              <Typography variant="h6">ไม่พบเกณฑ์ที่ตรงกับตัวกรอง</Typography>
               <Typography variant="body2" color="text.secondary">
-                Create a rubric or adjust the filters above.
+                สร้างเกณฑ์ใหม่ หรือปรับตัวกรองด้านบน
               </Typography>
             </Stack>
           </CardContent>
@@ -649,16 +619,16 @@ export default function RubricConfigPage() {
       />
 
       <Dialog open={Boolean(toDelete)} onClose={() => setToDelete(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Delete rubric</DialogTitle>
+        <DialogTitle>ลบเกณฑ์</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Delete <strong>{toDelete?.name}</strong>? Forms using it will fall back to an equal-weight
-            default until a new rubric is linked.
+            ต้องการลบ <strong>{toDelete?.name}</strong> หรือไม่? การมอบหมายที่ใช้เกณฑ์นี้จะกลับไปใช้
+            การถ่วงน้ำหนักเท่ากันเป็นค่าเริ่มต้นจนกว่าจะผูกเกณฑ์ใหม่
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button color="inherit" onClick={() => setToDelete(null)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={handleDelete}>Delete</Button>
+          <Button variant="ghost" color={ACCENT.violet} onClick={() => setToDelete(null)}>ยกเลิก</Button>
+          <Button variant="solid" color={ACCENT.pink} onClick={handleDelete}>ลบ</Button>
         </DialogActions>
       </Dialog>
     </Stack>

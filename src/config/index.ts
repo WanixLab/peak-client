@@ -29,6 +29,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import WidgetsIcon from '@mui/icons-material/Widgets';
 import PaletteIcon from '@mui/icons-material/Palette';
+import GroupsIcon from '@mui/icons-material/Groups';
 
 import appConfigJson from './app.config.json';
 import layoutConfigJson from './layout.config.json';
@@ -100,6 +101,7 @@ const iconMap: Record<string, SvgIconComponent> = {
   FactCheck: FactCheckIcon,
   Widgets: WidgetsIcon,
   Palette: PaletteIcon,
+  Groups: GroupsIcon,
 };
 
 /** A single navigation entry, with its icon resolved to a component. */

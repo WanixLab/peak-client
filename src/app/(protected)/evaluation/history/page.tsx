@@ -5,133 +5,88 @@ import {
   Avatar,
   Box,
   Card,
-  CardContent,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   Grid,
-  InputAdornment,
-  MenuItem,
   Stack,
-  TextField,
   Typography,
-  Button,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
-import SearchIcon from '@mui/icons-material/Search';
-import PersonIcon from '@mui/icons-material/Person';
-import GroupsIcon from '@mui/icons-material/Groups';
-import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import HistoryIcon from '@mui/icons-material/History';
 import GradeIcon from '@mui/icons-material/Grade';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import MenuBookIcon from '@mui/icons-material/MenuBook';
+import GroupsIcon from '@mui/icons-material/Groups';
+import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import LockIcon from '@mui/icons-material/Lock';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import LinkIcon from '@mui/icons-material/Link';
+import DynamicFormIcon from '@mui/icons-material/DynamicForm';
+import RuleIcon from '@mui/icons-material/Rule';
 import PageHeader from '@/components/common/PageHeader';
-import StatTile from '@/components/common/StatTile';
+import KpiCard from '@/components/common/KpiCard';
+import FilterBar from '@/components/common/FilterBar';
+import Button from '@/components/common/Button';
+import Chip from '@/components/common/Chip';
 import { ACCENT } from '@/theme/accents';
+import { softCard } from '@/theme/surfaces';
+import {
+  ADVISORS,
+  ORAL_META,
+  ROUND_DUE,
+  SCALE_MAX,
+  TEAMS,
+  TOPICS,
+  ratingLevelOf,
+  scoreToPercent,
+  type Advisor,
+  type Round,
+  type Team,
+} from '@/data/teamOralEvaluation';
 
-// --- Domain model -----------------------------------------------------------
+const dateFmt = new Intl.DateTimeFormat('th-TH-u-ca-gregory', { day: 'numeric', month: 'short', year: 'numeric' });
 
-type EvalType = 'self' | 'peer' | 'advisor';
+const topicOf = (id: string) => TOPICS.find((t) => t.id === id)!;
 
-interface Criterion {
-  id: string;
-  label: string;
+/** สี/ป้ายตามคะแนน 0–5 */
+function scoreMeta(score: number | null | undefined): { color: string } {
+  if (score == null) return { color: ACCENT.violet };
+  if (score < 2) return { color: ACCENT.pink };
+  if (score < 3) return { color: ACCENT.amber };
+  if (score < 4) return { color: ACCENT.blue };
+  return { color: ACCENT.green };
 }
-interface Section {
-  id: string;
-  title: string;
-  criteria: Criterion[];
-}
+
+// --- โครงข้อมูลบันทึกประวัติ (1 แถว = อาจารย์ 1 ท่าน × 1 ทีม × 1 วงรอบที่ส่งแล้ว) ---
+
 interface HistoryRecord {
   id: string;
-  target: string;
-  subjectCode: string;
-  subject: string;
-  form: string;
-  type: EvalType;
-  term: string;
-  submittedAt: string; // ISO
-  score: number; // percentage
-  ratings: Record<string, number>; // criterionId -> 1..5
-  comment: string;
+  team: Team;
+  round: Round;
+  advisor: Advisor;
+  /** ค่าเฉลี่ยของหัวข้อที่อาจารย์ท่านนี้รับผิดชอบในทีม/รอบนี้ */
+  avg: number;
+  submittedAt: string;
 }
 
-const SCALE_MAX = 5;
+const RECORDS: HistoryRecord[] = TEAMS.flatMap((team) =>
+  team.rounds
+    .filter((r) => r.status === 'done')
+    .flatMap((round) =>
+      ADVISORS.map((advisor) => {
+        const scores = advisor.topicIds.map((id) => round.results[id]?.score).filter((s): s is number => s != null);
+        const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+        return { id: `${team.code}:${round.id}:${advisor.id}`, team, round, advisor, avg, submittedAt: ROUND_DUE[round.id] };
+      }),
+    ),
+);
 
-/** Rubric mirrored from the evaluation form so the read-only detail can render. */
-const SECTIONS: Section[] = [
-  {
-    id: 'content',
-    title: 'Content & Knowledge',
-    criteria: [
-      { id: 'c1', label: 'Clarity of objectives' },
-      { id: 'c2', label: 'Depth of content' },
-      { id: 'c3', label: 'Accuracy' },
-    ],
-  },
-  {
-    id: 'delivery',
-    title: 'Presentation & Delivery',
-    criteria: [
-      { id: 'd1', label: 'Delivery & confidence' },
-      { id: 'd2', label: 'Visual aids' },
-      { id: 'd3', label: 'Time management' },
-    ],
-  },
-  {
-    id: 'qa',
-    title: 'Discussion',
-    criteria: [{ id: 'q1', label: 'Answering questions' }],
-  },
-];
-
-const TYPE_META: Record<EvalType, { label: string; color: string; icon: typeof PersonIcon }> = {
-  self: { label: 'Self', color: ACCENT.violet, icon: PersonIcon },
-  peer: { label: 'Peer', color: ACCENT.blue, icon: GroupsIcon },
-  advisor: { label: 'Advisor', color: ACCENT.cyan, icon: SupervisorAccountIcon },
-};
-
-const TERMS = ['2569 / 1', '2568 / 2'];
-const CURRENT_TERM = TERMS[0];
-
-/** Letter grade + chip colour from a percentage score (shared style with Scores). */
-function gradeFor(score: number): { grade: string; color: 'success' | 'warning' | 'error' } {
-  if (score >= 80) return { grade: 'A', color: 'success' };
-  if (score >= 70) return { grade: 'B', color: 'success' };
-  if (score >= 65) return { grade: 'C+', color: 'warning' };
-  if (score >= 60) return { grade: 'C', color: 'warning' };
-  if (score >= 50) return { grade: 'D', color: 'error' };
-  return { grade: 'F', color: 'error' };
-}
-
-const dateFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-
-// --- Seed data --------------------------------------------------------------
-
-const SEED: HistoryRecord[] = [
-  { id: 'h1', target: 'Ploy Chaiyaphruek', subjectCode: 'MK310', subject: 'Marketing Research', form: 'Project Evaluation Form', type: 'peer', term: '2569 / 1', submittedAt: '2026-07-10', score: 89, ratings: { c1: 5, c2: 4, c3: 5, d1: 4, d2: 4, d3: 5, q1: 4 }, comment: 'Excellent research depth and delivery.' },
-  { id: 'h2', target: 'Wichai Rungroj', subjectCode: 'CS101', subject: 'Introduction to Programming', form: 'Project Evaluation Form', type: 'advisor', term: '2569 / 1', submittedAt: '2026-07-08', score: 82, ratings: { c1: 4, c2: 4, c3: 5, d1: 4, d2: 4, d3: 4, q1: 4 }, comment: 'Solid understanding, clear presentation.' },
-  { id: 'h3', target: 'My Self-Assessment', subjectCode: 'CS205', subject: 'Data Structures', form: 'Self-Assessment Form', type: 'self', term: '2569 / 1', submittedAt: '2026-07-05', score: 76, ratings: { c1: 4, c2: 3, c3: 4, d1: 4, d2: 3, d3: 4, q1: 4 }, comment: 'Confident with theory, want to improve on complexity analysis.' },
-  { id: 'h4', target: 'Nattapong Kittisak', subjectCode: 'MK310', subject: 'Marketing Research', form: 'Project Evaluation Form', type: 'peer', term: '2569 / 1', submittedAt: '2026-07-02', score: 68, ratings: { c1: 3, c2: 3, c3: 4, d1: 3, d2: 3, d3: 4, q1: 4 }, comment: 'Good effort; needs stronger data support.' },
-  { id: 'h5', target: 'Kanya Sukjai', subjectCode: 'CS205', subject: 'Data Structures', form: 'Project Evaluation Form', type: 'advisor', term: '2569 / 1', submittedAt: '2026-06-28', score: 91, ratings: { c1: 5, c2: 5, c3: 5, d1: 4, d2: 5, d3: 4, q1: 4 }, comment: 'Outstanding work across the board.' },
-  { id: 'h6', target: 'Somchai Prasert', subjectCode: 'CS101', subject: 'Introduction to Programming', form: 'Project Evaluation Form', type: 'peer', term: '2569 / 1', submittedAt: '2026-06-25', score: 74, ratings: { c1: 4, c2: 3, c3: 4, d1: 4, d2: 3, d3: 3, q1: 4 }, comment: 'Well structured, could improve timing.' },
-  { id: 'h7', target: 'Team A — Prototype Demo', subjectCode: 'CS310', subject: 'Database Systems', form: 'Project Evaluation Form', type: 'advisor', term: '2568 / 2', submittedAt: '2026-03-14', score: 85, ratings: { c1: 5, c2: 4, c3: 4, d1: 4, d2: 5, d3: 4, q1: 4 }, comment: 'Impressive prototype and schema design.' },
-  { id: 'h8', target: 'Manee Rakdee', subjectCode: 'AC220', subject: 'Financial Accounting', form: 'Project Evaluation Form', type: 'peer', term: '2568 / 2', submittedAt: '2026-03-12', score: 79, ratings: { c1: 4, c2: 4, c3: 4, d1: 4, d2: 3, d3: 4, q1: 4 }, comment: 'Accurate and well presented.' },
-  { id: 'h9', target: 'My Self-Assessment', subjectCode: 'PH150', subject: 'General Physics', form: 'Self-Assessment Form', type: 'self', term: '2568 / 2', submittedAt: '2026-03-10', score: 63, ratings: { c1: 3, c2: 3, c3: 3, d1: 3, d2: 3, d3: 4, q1: 4 }, comment: 'Fair grasp; need more practice with problem sets.' },
-  { id: 'h10', target: 'Anucha Boonme', subjectCode: 'MA200', subject: 'Calculus II', form: 'Project Evaluation Form', type: 'advisor', term: '2568 / 2', submittedAt: '2026-03-08', score: 57, ratings: { c1: 3, c2: 2, c3: 3, d1: 3, d2: 3, d3: 3, q1: 3 }, comment: 'Needs to strengthen fundamentals.' },
-  { id: 'h11', target: 'Jiraporn Nakorn', subjectCode: 'MK310', subject: 'Marketing Research', form: 'Project Evaluation Form', type: 'peer', term: '2568 / 2', submittedAt: '2026-03-05', score: 88, ratings: { c1: 5, c2: 4, c3: 4, d1: 5, d2: 4, d3: 5, q1: 4 }, comment: 'Creative approach, engaging delivery.' },
-];
-
-// --- Score dots (read-only rating display) ---------------------------------
+// --- แถวคะแนนอ่านอย่างเดียว -------------------------------------------------
 
 function ScoreDots({ value }: { value: number }) {
+  const rounded = Math.round(value);
+  const meta = scoreMeta(value);
   return (
     <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
       {Array.from({ length: SCALE_MAX }, (_, i) => i + 1).map((n) => (
@@ -141,221 +96,241 @@ function ScoreDots({ value }: { value: number }) {
             width: 12,
             height: 12,
             borderRadius: '50%',
-            bgcolor: n <= value ? 'primary.main' : 'transparent',
+            bgcolor: n <= rounded ? meta.color : 'transparent',
             border: '1.5px solid',
-            borderColor: n <= value ? 'primary.main' : 'divider',
+            borderColor: n <= rounded ? meta.color : 'divider',
           }}
         />
       ))}
-      <Typography variant="caption" sx={{ fontWeight: 700, ml: 0.5, minWidth: 24 }}>
-        {value}/{SCALE_MAX}
+      <Typography variant="caption" sx={{ fontWeight: 700, ml: 0.5, minWidth: 30, color: meta.color }}>
+        {value.toFixed(1)}/{SCALE_MAX}
       </Typography>
     </Stack>
   );
 }
 
-// --- Detail dialog (read-only) ---------------------------------------------
+// --- กล่องรายละเอียด (อ่านอย่างเดียว) --------------------------------------
 
 function DetailDialog({ record, onClose }: { record: HistoryRecord | null; onClose: () => void }) {
-  const typeMeta = record ? TYPE_META[record.type] : null;
-  const grade = record ? gradeFor(record.score) : null;
+  if (!record) return null;
+  const { team, round, advisor, avg } = record;
+  const passed = avg >= ORAL_META.passScore;
+  const meta = scoreMeta(avg);
+  const owned = advisor.topicIds.map(topicOf);
 
   return (
-    <Dialog open={Boolean(record)} onClose={onClose} fullWidth maxWidth="md" scroll="paper">
-      {record && typeMeta && grade && (
-        <>
-          <DialogTitle sx={{ pb: 1.5 }}>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <Avatar variant="rounded" sx={{ bgcolor: alpha(typeMeta.color, 0.14), color: typeMeta.color }}>
-                <typeMeta.icon />
-              </Avatar>
-              <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>
-                  {record.target}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {record.subjectCode} · {record.subject} · {record.form}
-                </Typography>
-              </Box>
-              <Stack sx={{ alignItems: 'flex-end', flexShrink: 0 }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, color: `${grade.color}.main`, lineHeight: 1 }}>
-                  {record.score}%
-                </Typography>
-                <Chip size="small" label={`Grade ${grade.grade}`} color={grade.color} variant="outlined" sx={{ mt: 0.5 }} />
-              </Stack>
-            </Stack>
-            <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
-              <Chip size="small" icon={<LockIcon sx={{ fontSize: 15 }} />} label="Locked" />
-              <Chip size="small" variant="outlined" label={`Term ${record.term}`} />
-              <Chip size="small" variant="outlined" label={`Submitted ${dateFmt.format(new Date(record.submittedAt))}`} />
-              <Chip size="small" sx={{ bgcolor: alpha(typeMeta.color, 0.12), color: typeMeta.color, fontWeight: 600 }} label={`${typeMeta.label} evaluation`} />
-            </Stack>
-          </DialogTitle>
+    <Dialog open onClose={onClose} fullWidth maxWidth="md" scroll="paper">
+      <DialogTitle sx={{ pb: 1.5 }}>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+          <Avatar variant="rounded" sx={{ bgcolor: alpha(advisor.color, 0.14), color: advisor.color, borderRadius: 2 }}>
+            {advisor.name[0]}
+          </Avatar>
+          <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>
+              {advisor.title} {advisor.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              ทีม {team.code} · {team.company} · {round.label} · {round.period}
+            </Typography>
+          </Box>
+          <Stack sx={{ alignItems: 'flex-end', flexShrink: 0 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: meta.color, lineHeight: 1 }}>
+              {avg.toFixed(2)}<Box component="span" sx={{ fontSize: 14, color: 'text.disabled' }}>/{SCALE_MAX}</Box>
+            </Typography>
+            <Chip label={passed ? 'ผ่าน' : 'ไม่ผ่าน'} color={passed ? ACCENT.green : ACCENT.pink} variant="soft" size="sm" />
+          </Stack>
+        </Stack>
+        <Stack direction="row" spacing={0.75} sx={{ mt: 1.5, flexWrap: 'wrap', gap: 0.75 }}>
+          <Chip icon={LockIcon} label="ล็อกแล้ว" color={ACCENT.violet} variant="soft" size="sm" />
+          <Chip icon={DynamicFormIcon} label={ORAL_META.formName} color={ACCENT.blue} variant="outlined" size="sm" />
+          <Chip icon={RuleIcon} label={`ผ่าน ≥ ${ORAL_META.passPercent}%`} color={ACCENT.cyan} variant="outlined" size="sm" />
+          <Chip label={`ส่ง ${dateFmt.format(new Date(record.submittedAt))}`} color={ACCENT.violet} variant="outlined" size="sm" />
+        </Stack>
+      </DialogTitle>
 
-          <DialogContent dividers>
-            <Stack spacing={3}>
-              {SECTIONS.map((section) => (
-                <Box key={section.id}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
-                    {section.title}
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    {section.criteria.map((c) => (
-                      <Stack
-                        key={c.id}
-                        direction="row"
-                        spacing={1.5}
-                        sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-                      >
-                        <Typography variant="body2">{c.label}</Typography>
-                        <ScoreDots value={record.ratings[c.id] ?? 0} />
-                      </Stack>
-                    ))}
+      <DialogContent dividers>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+          หัวข้อที่รับผิดชอบ ({owned.length} จาก {TOPICS.length})
+        </Typography>
+        <Stack spacing={1.5} sx={{ mt: 1 }}>
+          {owned.map((topic) => {
+            const result = round.results[topic.id];
+            const level = ratingLevelOf(result?.score);
+            return (
+              <Box key={topic.id} sx={{ p: 1.75, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, mb: result?.comment ? 1 : 0 }}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                    <Box sx={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700, bgcolor: alpha(advisor.color, 0.14), color: advisor.color }}>
+                      {topic.no}
+                    </Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{topic.short}</Typography>
                   </Stack>
-                </Box>
-              ))}
-
-              <Divider />
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  Overall comment
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {record.comment || '—'}
-                </Typography>
+                  <ScoreDots value={result?.score ?? 0} />
+                </Stack>
+                {level && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: result?.comment ? 0.5 : 0 }}>
+                    ระดับ {level.level} · {level.title}
+                  </Typography>
+                )}
+                {result?.comment && (
+                  <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>{result.comment}</Typography>
+                )}
+                {result?.evidence && (
+                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mt: 0.75 }}>
+                    <LinkIcon sx={{ fontSize: 15, color: ACCENT.blue }} />
+                    <Typography variant="caption" sx={{ color: ACCENT.blue, wordBreak: 'break-all' }}>{result.evidence}</Typography>
+                  </Stack>
+                )}
               </Box>
-            </Stack>
-          </DialogContent>
+            );
+          })}
+        </Stack>
+      </DialogContent>
 
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={onClose} variant="contained">
-              Close
-            </Button>
-          </DialogActions>
-        </>
-      )}
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button variant="solid" color={ACCENT.violet} onClick={onClose}>ปิด</Button>
+      </DialogActions>
     </Dialog>
   );
 }
 
-// --- Page -------------------------------------------------------------------
+// --- หน้าเพจ -----------------------------------------------------------------
+
+const DONE_ROUNDS = TEAMS[0].rounds.filter((r) => r.status === 'done');
+const ROUND_OPTIONS = [
+  { value: 'all', label: 'ทุกวงรอบ' },
+  ...DONE_ROUNDS.map((r) => ({ value: r.id, label: r.label })),
+];
+const TEAM_OPTIONS = [
+  { value: 'all', label: 'ทุกทีม' },
+  ...TEAMS.map((t) => ({ value: t.code, label: `ทีม ${t.code}` })),
+];
+const ADVISOR_OPTIONS = [
+  { value: 'all', label: 'ทุกท่าน' },
+  ...ADVISORS.map((a) => ({ value: a.id, label: `${a.title} ${a.name}` })),
+];
 
 export default function EvaluationHistoryPage() {
-  const [term, setTerm] = React.useState('all');
-  const [type, setType] = React.useState('all');
+  const [teamFilter, setTeamFilter] = React.useState('all');
+  const [roundFilter, setRoundFilter] = React.useState('all');
+  const [advisorFilter, setAdvisorFilter] = React.useState('all');
   const [search, setSearch] = React.useState('');
   const [active, setActive] = React.useState<HistoryRecord | null>(null);
 
   const rows = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    return SEED.filter(
+    return RECORDS.filter(
       (r) =>
-        (term === 'all' || r.term === term) &&
-        (type === 'all' || r.type === type) &&
+        (teamFilter === 'all' || r.team.code === teamFilter) &&
+        (roundFilter === 'all' || r.round.id === roundFilter) &&
+        (advisorFilter === 'all' || r.advisor.id === advisorFilter) &&
         (q === '' ||
-          r.target.toLowerCase().includes(q) ||
-          r.subject.toLowerCase().includes(q) ||
-          r.subjectCode.toLowerCase().includes(q)),
+          r.advisor.name.toLowerCase().includes(q) ||
+          r.round.label.toLowerCase().includes(q) ||
+          r.team.company.toLowerCase().includes(q) ||
+          r.team.code.toLowerCase().includes(q)),
     );
-  }, [term, type, search]);
+  }, [teamFilter, roundFilter, advisorFilter, search]);
 
   const summary = React.useMemo(() => {
     const count = rows.length;
-    const avg = count ? rows.reduce((s, r) => s + r.score, 0) / count : 0;
-    const thisTerm = rows.filter((r) => r.term === CURRENT_TERM).length;
-    const subjects = new Set(rows.map((r) => r.subject)).size;
-    return { count, avg: avg.toFixed(1), thisTerm, subjects };
+    const avg = count ? rows.reduce((s, r) => s + r.avg, 0) / count : 0;
+    const teams = new Set(rows.map((r) => r.team.code)).size;
+    const advisors = new Set(rows.map((r) => r.advisor.id)).size;
+    return { count, avg: avg.toFixed(2), teams, advisors };
   }, [rows]);
+
+  const filtersActive = teamFilter !== 'all' || roundFilter !== 'all' || advisorFilter !== 'all' || search.trim() !== '';
 
   const columns = React.useMemo<GridColDef<HistoryRecord>[]>(
     () => [
       {
-        field: 'target',
-        headerName: 'Evaluated',
-        flex: 1.5,
-        minWidth: 220,
+        field: 'advisor',
+        headerName: 'ผู้ประเมิน',
+        flex: 1.3,
+        minWidth: 200,
+        sortable: false,
         renderCell: (params: GridRenderCellParams<HistoryRecord>) => {
-          const meta = TYPE_META[params.row.type];
+          const a = params.row.advisor;
           return (
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', height: '100%' }}>
-              <Avatar sx={{ width: 34, height: 34, bgcolor: alpha(meta.color, 0.14), color: meta.color }}>
-                <meta.icon sx={{ fontSize: 18 }} />
-              </Avatar>
+              <Avatar sx={{ width: 34, height: 34, fontSize: 14, bgcolor: alpha(a.color, 0.14), color: a.color }}>{a.name[0]}</Avatar>
               <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }} noWrap>
-                  {params.row.target}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }} noWrap>
-                  {params.row.subjectCode} · {params.row.subject}
-                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }} noWrap>{a.title} {a.name}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }} noWrap>{params.row.advisor.topicIds.length} หัวข้อ</Typography>
               </Box>
             </Stack>
           );
         },
       },
       {
-        field: 'type',
-        headerName: 'Type',
-        width: 110,
+        field: 'team',
+        headerName: 'ทีม',
+        flex: 1,
+        minWidth: 160,
+        sortable: false,
+        valueGetter: (_v, row) => row.team.code,
+        renderCell: (params: GridRenderCellParams<HistoryRecord>) => (
+          <Stack sx={{ height: '100%', justifyContent: 'center' }}>
+            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+              <Chip label={params.row.team.code} color={ACCENT.violet} variant="soft" size="sm" />
+              <Typography variant="body2" noWrap>{params.row.team.company}</Typography>
+            </Stack>
+          </Stack>
+        ),
+      },
+      { field: 'round', headerName: 'วงรอบ', width: 110, valueGetter: (_v, row) => row.round.label, sortable: false },
+      {
+        field: 'avg',
+        headerName: 'คะแนนเฉลี่ย',
+        width: 150,
+        align: 'center',
+        headerAlign: 'center',
         renderCell: (params: GridRenderCellParams<HistoryRecord>) => {
-          const meta = TYPE_META[params.row.type];
+          const meta = scoreMeta(params.row.avg);
           return (
-            <Chip
-              size="small"
-              label={meta.label}
-              sx={{ bgcolor: alpha(meta.color, 0.12), color: meta.color, fontWeight: 600 }}
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75, height: '100%' }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: meta.color }}>{params.row.avg.toFixed(2)}/{SCALE_MAX}</Typography>
+              <Typography variant="caption" color="text.secondary">({scoreToPercent(params.row.avg)}%)</Typography>
+            </Box>
           );
         },
       },
-      { field: 'term', headerName: 'Term', width: 100 },
       {
-        field: 'submittedAt',
-        headerName: 'Submitted',
-        width: 130,
-        valueFormatter: (value: string) => dateFmt.format(new Date(value)),
-      },
-      {
-        field: 'score',
-        headerName: 'Score',
-        width: 90,
-        type: 'number',
-        align: 'center',
-        headerAlign: 'center',
-        renderCell: (params: GridRenderCellParams<HistoryRecord, number>) => (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <Typography variant="body2" sx={{ fontWeight: 700, color: `${gradeFor(params.value ?? 0).color}.main` }}>
-              {params.value}%
-            </Typography>
-          </Box>
-        ),
-      },
-      {
-        field: 'grade',
-        headerName: 'Grade',
+        field: 'result',
+        headerName: 'ผล',
         width: 90,
         align: 'center',
         headerAlign: 'center',
         sortable: false,
-        valueGetter: (_value, row) => gradeFor(row.score).grade,
         renderCell: (params: GridRenderCellParams<HistoryRecord>) => {
-          const g = gradeFor(params.row.score);
-          return <Chip size="small" label={g.grade} color={g.color} variant="outlined" />;
+          const passed = params.row.avg >= ORAL_META.passScore;
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <Chip label={passed ? 'ผ่าน' : 'ไม่ผ่าน'} color={passed ? ACCENT.green : ACCENT.pink} variant="soft" size="sm" />
+            </Box>
+          );
         },
+      },
+      {
+        field: 'submittedAt',
+        headerName: 'วันที่ส่ง',
+        width: 130,
+        valueFormatter: (value: string) => dateFmt.format(new Date(value)),
       },
       {
         field: 'actions',
         headerName: '',
-        width: 110,
+        width: 80,
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
         align: 'right',
         headerAlign: 'right',
         renderCell: (params: GridRenderCellParams<HistoryRecord>) => (
-          <Button size="small" startIcon={<VisibilityIcon />} onClick={() => setActive(params.row)}>
-            View
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Button size="sm" variant="ghost" color={ACCENT.violet} startIcon={VisibilityIcon} onClick={() => setActive(params.row)}>ดู</Button>
+          </Box>
         ),
       },
     ],
@@ -365,66 +340,42 @@ export default function EvaluationHistoryPage() {
   return (
     <Stack spacing={3}>
       <PageHeader
-        title="Evaluation History"
-        description="A record of the evaluations you have submitted."
+        title="ประวัติการประเมิน"
+        description="บันทึกการประเมินที่ส่งแล้ว — แยกตามอาจารย์ ทีม และวงรอบ (อ่านอย่างเดียว)"
       />
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Total Evaluations" value={summary.count} icon={HistoryIcon} color={ACCENT.violet} hint="Across shown records" />
+          <KpiCard label="การประเมินที่ส่งแล้ว" value={summary.count} icon={HistoryIcon} color={ACCENT.violet} caption="ตามที่แสดง" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Avg Score Given" value={summary.avg} icon={GradeIcon} color={ACCENT.green} hint="Mean of shown records" />
+          <KpiCard label="คะแนนเฉลี่ยที่ให้" value={`${summary.avg}/${SCALE_MAX}`} icon={GradeIcon} color={ACCENT.green} caption="เฉลี่ยของที่แสดง" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="This Term" value={summary.thisTerm} icon={CalendarMonthIcon} color={ACCENT.blue} hint={CURRENT_TERM} />
+          <KpiCard label="ทีมที่ประเมิน" value={summary.teams} icon={GroupsIcon} color={ACCENT.blue} caption="หัวข้อเดียวกันทุกทีม" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Subjects" value={summary.subjects} icon={MenuBookIcon} color={ACCENT.amber} hint="Distinct subjects" />
+          <KpiCard label="ผู้ประเมิน" value={summary.advisors} icon={SupervisorAccountIcon} color={ACCENT.cyan} caption="แบ่งหัวข้อไม่ทับ" />
         </Grid>
       </Grid>
 
-      <Card>
-        <CardContent>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            <TextField select size="small" label="Term" value={term} onChange={(e) => setTerm(e.target.value)} sx={{ minWidth: 160 }}>
-              <MenuItem value="all">All terms</MenuItem>
-              {TERMS.map((t) => (
-                <MenuItem key={t} value={t}>
-                  {t}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField select size="small" label="Type" value={type} onChange={(e) => setType(e.target.value)} sx={{ minWidth: 150 }}>
-              <MenuItem value="all">All types</MenuItem>
-              {(Object.keys(TYPE_META) as EvalType[]).map((t) => (
-                <MenuItem key={t} value={t}>
-                  {TYPE_META[t].label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Box sx={{ flexGrow: 1 }} />
-            <TextField
-              size="small"
-              placeholder="Search target, subject…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ minWidth: { xs: '100%', md: 280 } }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-          </Stack>
-        </CardContent>
-      </Card>
+      <FilterBar
+        search={{ value: search, onChange: setSearch, placeholder: 'ค้นหาผู้ประเมิน, ทีม, วงรอบ…' }}
+        filters={[
+          { key: 'team', label: 'ทีม', value: teamFilter, onChange: setTeamFilter, options: TEAM_OPTIONS },
+          { key: 'round', label: 'วงรอบ', value: roundFilter, onChange: setRoundFilter, options: ROUND_OPTIONS },
+          { key: 'advisor', label: 'ผู้ประเมิน', value: advisorFilter, onChange: setAdvisorFilter, options: ADVISOR_OPTIONS, minWidth: 200 },
+        ]}
+        onReset={() => {
+          setTeamFilter('all');
+          setRoundFilter('all');
+          setAdvisorFilter('all');
+          setSearch('');
+        }}
+        active={filtersActive}
+      />
 
-      <Card>
+      <Card sx={softCard}>
         <DataGrid<HistoryRecord>
           rows={rows}
           columns={columns}

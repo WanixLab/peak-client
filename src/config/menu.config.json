@@ -4,21 +4,18 @@
       "id": "home",
       "title": "Home",
       "path": "/home",
-      "icon": "home",
-      "section": "Overview"
+      "icon": "home"
     },
     {
       "id": "dashboard",
       "title": "Dashboard",
       "path": "/dashboard",
-      "icon": "Dashboard",
-      "section": "Overview"
+      "icon": "Dashboard"
     },
     {
       "id": "evaluation",
       "title": "Evaluation",
       "icon": "RateReview",
-      "section": "Evaluation",
       "children": [
         {
           "id": "evaluation-tasks",
@@ -38,14 +35,12 @@
       "id": "assignment",
       "title": "Assignment",
       "path": "/assignment",
-      "icon": "AssignmentInd",
-      "section": "Evaluation"
+      "icon": "AssignmentInd"
     },
     {
       "id": "scores",
       "title": "Scores",
       "icon": "Grade",
-      "section": "Results",
       "children": [
         {
           "id": "scores-view",
@@ -65,7 +60,6 @@
       "id": "form-management",
       "title": "Form Management",
       "icon": "DynamicForm",
-      "section": "Form",
       "children": [
         {
           "id": "form-builder",
@@ -88,28 +82,39 @@
       ]
     },
     {
-      "id": "master-data",
-      "title": "Master Data",
+      "id": "academic-data",
+      "title": "Academic Data",
       "icon": "Storage",
-      "section": "Master Data",
       "children": [
         {
           "id": "organization",
           "title": "Organization Structure",
-          "path": "/master-data/organization",
+          "path": "/academic-data/organization",
           "icon": "AccountTree"
         },
         {
           "id": "academic-term",
           "title": "Academic Year / Semester",
-          "path": "/master-data/academic-term",
+          "path": "/academic-data/academic-term",
           "icon": "CalendarMonth"
         },
         {
           "id": "subjects",
           "title": "Subjects",
-          "path": "/master-data/subjects",
+          "path": "/academic-data/subjects",
           "icon": "MenuBook"
+        },
+        {
+          "id": "students",
+          "title": "Students",
+          "path": "/academic-data/students",
+          "icon": "People"
+        },
+        {
+          "id": "groups",
+          "title": "Groups",
+          "path": "/academic-data/groups",
+          "icon": "Groups"
         }
       ]
     },
@@ -117,7 +122,6 @@
       "id": "user-management",
       "title": "User Management",
       "icon": "ManageAccounts",
-      "section": "Administration",
       "children": [
         {
           "id": "members",
@@ -139,7 +143,6 @@
       "id": "system",
       "title": "System",
       "icon": "Settings",
-      "section": "System",
       "children": [
         {
           "id": "audit-log",
@@ -160,7 +163,6 @@
       "id": "playground",
       "title": "Playground",
       "icon": "Widgets",
-      "section": "Developer",
       "children": [
         {
           "id": "playground-components",
