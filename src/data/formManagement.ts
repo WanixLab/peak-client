@@ -149,6 +149,17 @@ export interface RubricCriterion {
   fieldId?: string;
 }
 
+/**
+ * A single rung of a rating scale, spelling out what a given score *means*
+ * (e.g. 5 = "ดีเยี่ยม — ครบถ้วนเกินความคาดหมาย"). Shared across all of a rubric's
+ * criteria so evaluators read the same yardstick for every field.
+ */
+export interface RubricLevel {
+  score: number;
+  label: string;
+  description?: string;
+}
+
 export interface Rubric {
   id: string;
   name: string;
@@ -158,6 +169,29 @@ export interface Rubric {
   passThreshold: number; // percentage 0–100
   status: RubricStatus;
   criteria: RubricCriterion[];
+  /** Human-readable meaning of each score on the rating scale (optional). */
+  scaleLevels?: RubricLevel[];
+}
+
+/** Fallback Thai labels for the common 1–5 / 1–3 scales. */
+const LEVEL_LABELS_5: Record<number, string> = {
+  5: 'ดีเยี่ยม',
+  4: 'ดี',
+  3: 'พอใช้',
+  2: 'ต้องปรับปรุง',
+  1: 'ควรปรับปรุงมาก',
+};
+
+/**
+ * Generate a default set of level descriptors for a scale of `1..max`, ordered
+ * high → low. Uses named tiers for a 1–5 scale, generic labels otherwise.
+ */
+export function makeDefaultLevels(max: number): RubricLevel[] {
+  return Array.from({ length: max }, (_, i) => {
+    const score = max - i;
+    const label = max === 5 ? LEVEL_LABELS_5[score] : `ระดับ ${score}`;
+    return { score, label, description: '' };
+  });
 }
 
 export const RUBRICS: Rubric[] = [
@@ -174,6 +208,13 @@ export const RUBRICS: Rubric[] = [
       { id: 'rc3', label: 'การนำเสนอ', weight: 20, fieldId: 'cap-presentation' },
       { id: 'rc4', label: 'เอกสาร', weight: 20, fieldId: 'cap-documentation' },
     ],
+    scaleLevels: [
+      { score: 5, label: 'ดีเยี่ยม', description: 'ครบถ้วน โดดเด่นเกินความคาดหมาย' },
+      { score: 4, label: 'ดี', description: 'ทำได้ดีตามเกณฑ์ มีจุดแข็งชัดเจน' },
+      { score: 3, label: 'พอใช้', description: 'ผ่านเกณฑ์ขั้นต่ำ ยังพัฒนาต่อได้' },
+      { score: 2, label: 'ต้องปรับปรุง', description: 'มีข้อบกพร่องที่ต้องแก้ไข' },
+      { score: 1, label: 'ควรปรับปรุงมาก', description: 'ไม่เป็นไปตามเกณฑ์' },
+    ],
   },
   {
     id: 'rubric-peer',
@@ -187,6 +228,12 @@ export const RUBRICS: Rubric[] = [
       { id: 'rc2', label: 'ความน่าเชื่อถือ', weight: 25, fieldId: 'peer-reliability' },
       { id: 'rc3', label: 'การมีส่วนร่วม', weight: 50, fieldId: 'peer-contribution' },
     ],
+    // ตัวอย่างสเกลแบบ 3 ระดับ (ไม่ต้องครบ 1–5)
+    scaleLevels: [
+      { score: 4, label: 'มีส่วนร่วมเต็มที่', description: 'รับผิดชอบงานและช่วยเหลือทีมสม่ำเสมอ' },
+      { score: 3, label: 'มีส่วนร่วมพอควร', description: 'ทำงานตามที่ได้รับมอบหมาย' },
+      { score: 1, label: 'มีส่วนร่วมน้อย', description: 'ต้องกระตุ้นหรือหายไปบ่อย' },
+    ],
   },
   {
     id: 'rubric-advisor',
@@ -199,6 +246,14 @@ export const RUBRICS: Rubric[] = [
       { id: 'rc1', label: 'บรรลุวัตถุประสงค์', weight: 40, fieldId: 'adv-objectives' },
       { id: 'rc2', label: 'ระเบียบวิธี', weight: 35, fieldId: 'adv-methodology' },
       { id: 'rc3', label: 'ผลกระทบ', weight: 25, fieldId: 'adv-impact' },
+    ],
+    // สเกล 1–10 ที่มีจุดตัดเป็นทศนิยม (เช่น 2.5)
+    scaleLevels: [
+      { score: 9, label: 'ยอดเยี่ยม', description: 'ระดับตีพิมพ์/นำไปใช้จริงได้' },
+      { score: 7, label: 'ดีมาก', description: 'สมบูรณ์ มีจุดแข็งชัดเจน' },
+      { score: 5, label: 'ผ่าน', description: 'ได้ตามเกณฑ์ที่ปรึกษากำหนด' },
+      { score: 2.5, label: 'ต้องแก้ไข', description: 'มีข้อบกพร่องสำคัญที่ต้องปรับ' },
+      { score: 0, label: 'ไม่ผ่าน', description: 'ต้องทำใหม่' },
     ],
   },
   {
@@ -231,6 +286,13 @@ export const RUBRICS: Rubric[] = [
       { id: 'rc6', label: 'การเขียนโปรแกรม', weight: 12, fieldId: 'oral-tp6' },
       { id: 'rc7', label: 'การทดสอบซอฟต์แวร์', weight: 13, fieldId: 'oral-tp7' },
       { id: 'rc8', label: 'การควบคุมการเปลี่ยนแปลง', weight: 12, fieldId: 'oral-tp8' },
+    ],
+    scaleLevels: [
+      { score: 5, label: 'ดีเยี่ยม', description: 'ดำเนินการครบถ้วน มีหลักฐานชัดเจนทุกด้าน' },
+      { score: 4, label: 'ดี', description: 'ดำเนินการได้ดี มีหลักฐานสนับสนุน' },
+      { score: 3, label: 'พอใช้', description: 'ดำเนินการตามเกณฑ์ขั้นต่ำ (ผ่าน)' },
+      { score: 2, label: 'ต้องปรับปรุง', description: 'ดำเนินการไม่ครบ ยังขาดหลักฐาน' },
+      { score: 1, label: 'ควรปรับปรุงมาก', description: 'ยังไม่ได้ดำเนินการ / ไม่มีหลักฐาน' },
     ],
   },
 ];
@@ -402,6 +464,40 @@ export const getRubric = (id: string) => RUBRICS.find((r) => r.id === id);
 export const rubricsForForm = (formId: string) => RUBRICS.filter((r) => r.formId === formId);
 export const getScorableField = (form: FormSummary | undefined, fieldId?: string) =>
   fieldId ? form?.scorableFields.find((f) => f.id === fieldId) : undefined;
+
+/** Every assignment that runs on a given form. */
+export const assignmentsForForm = (formId: string) => ASSIGNMENTS.filter((a) => a.formId === formId);
+
+export interface FormUsage {
+  /** Assignments that use this form. */
+  assignments: Assignment[];
+  /** Assignments not yet closed. */
+  activeAssignments: number;
+  /** Total evaluation tasks generated across all assignments. */
+  totalTasks: number;
+  /** Tasks submitted so far. */
+  submitted: number;
+  /** Submitted ÷ total, as a 0–100 percentage (0 when there are no tasks). */
+  responseRate: number;
+}
+
+/**
+ * Roll up how a form is actually being used: how many assignments reference it
+ * and how far along their responses are. This is what turns the static form
+ * catalog into a live "who's answered" view.
+ */
+export function formUsage(formId: string): FormUsage {
+  const assignments = assignmentsForForm(formId);
+  const totalTasks = assignments.reduce((s, a) => s + taskCount(a), 0);
+  const submitted = assignments.reduce((s, a) => s + a.submitted, 0);
+  return {
+    assignments,
+    activeAssignments: assignments.filter((a) => a.status !== 'closed').length,
+    totalTasks,
+    submitted,
+    responseRate: totalTasks === 0 ? 0 : Math.round((submitted / totalTasks) * 100),
+  };
+}
 
 // --- Scoring engine ---------------------------------------------------------
 

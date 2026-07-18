@@ -101,7 +101,7 @@ export interface RoleMeta {
 const student: HomeContent = {
   tagline:
     'ดูผลการประเมินที่คุณได้รับ ทำแบบประเมินตนเองที่ค้างอยู่ให้เสร็จ และติดตามพัฒนาการของคุณในเทอมนี้',
-  cta: { label: 'ดูคะแนนของฉัน', href: '/scores/view' },
+  cta: { label: 'ดูคะแนนของฉัน', href: '/scores/me' },
   stats: [
     { id: 'avg', label: 'คะแนนเฉลี่ยของฉัน', value: '87.2', caption: 'สูงขึ้น +1.8 จากเทอมก่อน', icon: GradeIcon, color: ACCENT.green },
     { id: 'received', label: 'ผลประเมินที่ได้รับ', value: '9', caption: 'ในปีการศึกษานี้', icon: RateReviewIcon, color: ACCENT.blue },
@@ -110,8 +110,8 @@ const student: HomeContent = {
   ],
   actions: [
     { id: 'tasks', title: 'การประเมินของฉัน', description: 'ทำแบบประเมินตนเอง', href: '/evaluation/tasks', icon: AssignmentTurnedInIcon, color: ACCENT.violet },
-    { id: 'scores', title: 'ดูคะแนน', description: 'ดูผลลัพธ์ของคุณ', href: '/scores/view', icon: ScoreIcon, color: ACCENT.green },
-    { id: 'subjects', title: 'รายวิชา', description: 'ดูวิชาของคุณ', href: '/academic-data/subjects', icon: MenuBookIcon, color: ACCENT.cyan },
+    { id: 'scores', title: 'ดูคะแนน', description: 'ดูผลลัพธ์ของคุณ', href: '/scores/me', icon: ScoreIcon, color: ACCENT.green },
+    { id: 'subjects', title: 'รายวิชา', description: 'ดูวิชาของคุณ', href: '/academic-data/courses', icon: MenuBookIcon, color: ACCENT.cyan },
     { id: 'notify', title: 'การแจ้งเตือน', description: 'จัดการการแจ้งเตือนของคุณ', href: '/system/notifications', icon: NotificationsActiveIcon, color: ACCENT.blue },
   ],
   activity: [
@@ -221,7 +221,7 @@ const evaluator: HomeContent = {
 
 const evaluatee: HomeContent = {
   tagline: 'ติดตามผลการประเมินที่คุณได้รับ และทำแบบประเมินตนเองที่ค้างอยู่ให้เสร็จ',
-  cta: { label: 'ดูคะแนนของฉัน', href: '/scores/view' },
+  cta: { label: 'ดูคะแนนของฉัน', href: '/scores/me' },
   stats: [
     { id: 'avg', label: 'คะแนนเฉลี่ยของฉัน', value: '88.6', caption: 'สูงขึ้น +2.1 จากเทอมก่อน', icon: GradeIcon, color: ACCENT.green },
     { id: 'received', label: 'ผลประเมินที่ได้รับ', value: '12', caption: 'ในปีการศึกษานี้', icon: RateReviewIcon, color: ACCENT.blue },
@@ -229,9 +229,9 @@ const evaluatee: HomeContent = {
     { id: 'rank', label: 'อันดับในหน่วยงาน', value: '#4', caption: 'จากทั้งหมด 24 คน', icon: EmojiEventsIcon, color: ACCENT.violet },
   ],
   actions: [
-    { id: 'scores', title: 'ดูคะแนน', description: 'ดูผลลัพธ์ของคุณ', href: '/scores/view', icon: ScoreIcon, color: ACCENT.green },
+    { id: 'scores', title: 'ดูคะแนน', description: 'ดูผลลัพธ์ของคุณ', href: '/scores/me', icon: ScoreIcon, color: ACCENT.green },
     { id: 'tasks', title: 'การประเมินของฉัน', description: 'ทำแบบประเมินตนเอง', href: '/evaluation/tasks', icon: AssignmentTurnedInIcon, color: ACCENT.violet },
-    { id: 'subjects', title: 'รายวิชา', description: 'ดูวิชาของคุณ', href: '/academic-data/subjects', icon: MenuBookIcon, color: ACCENT.cyan },
+    { id: 'subjects', title: 'รายวิชา', description: 'ดูวิชาของคุณ', href: '/academic-data/courses', icon: MenuBookIcon, color: ACCENT.cyan },
     { id: 'notify', title: 'การแจ้งเตือน', description: 'จัดการการแจ้งเตือนของคุณ', href: '/system/notifications', icon: NotificationsActiveIcon, color: ACCENT.blue },
   ],
   activity: [

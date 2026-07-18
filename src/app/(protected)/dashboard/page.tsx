@@ -1,131 +1,63 @@
 'use client';
 
 import * as React from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Divider,
-  Grid,
-  LinearProgress,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { alpha } from '@mui/material/styles';
+import { Box, Card, CardContent, Divider, Grid, Stack, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DonutLargeIcon from '@mui/icons-material/DonutLarge';
+import GradeIcon from '@mui/icons-material/Grade';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import GroupIcon from '@mui/icons-material/Group';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
-import GradeIcon from '@mui/icons-material/Grade';
-import TouchAppIcon from '@mui/icons-material/TouchApp';
-import EditNoteIcon from '@mui/icons-material/EditNote';
-import ApartmentIcon from '@mui/icons-material/Apartment';
-import ReplayIcon from '@mui/icons-material/Replay';
-import PeopleIcon from '@mui/icons-material/People';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import RateReviewIcon from '@mui/icons-material/RateReview';
 import PageHeader from '@/components/common/PageHeader';
 import KpiCard from '@/components/common/KpiCard';
+import FilterBar from '@/components/common/FilterBar';
+import Button from '@/components/common/Button';
 import DonutChart from '@/components/charts/DonutChart';
-import BarChart, { type BarDatum } from '@/components/charts/BarChart';
-import TrendLineChart, { type TrendPoint } from '@/components/charts/TrendLineChart';
+import TrendLineChart from '@/components/charts/TrendLineChart';
+import CategoryBarChart from '@/components/charts/CategoryBarChart';
+import RadialGauge from '@/components/charts/RadialGauge';
 import { ACCENT } from '@/theme/accents';
-
-// --- Demo data --------------------------------------------------------------
-// Placeholder figures — wire these to the reporting API when the backend is
-// ready. Everything on the page derives from `DEPARTMENTS` + the active filter.
-
-interface SubjectProgress {
-  name: string;
-  total: number;
-  completed: number;
-}
-
-interface Department {
-  id: string;
-  name: string;
-  faculty: string;
-  total: number;
-  completed: number;
-  inProgress: number;
-  avgScore: number;
-  subjects: SubjectProgress[];
-}
-
-const FACULTIES = ['Engineering', 'Business', 'Science'];
-const TERMS = ['2026 / Semester 1', '2025 / Semester 2', '2025 / Semester 1'];
-
-const DEPARTMENTS: Department[] = [
-  {
-    id: 'ce', name: 'Computer Eng.', faculty: 'Engineering', total: 120, completed: 86, inProgress: 20, avgScore: 84.2,
-    subjects: [
-      { name: 'CS101 Intro to Programming', total: 40, completed: 34 },
-      { name: 'CS205 Data Structures', total: 44, completed: 30 },
-      { name: 'CS310 Database Systems', total: 36, completed: 22 },
-    ],
-  },
-  {
-    id: 'ee', name: 'Electrical Eng.', faculty: 'Engineering', total: 90, completed: 54, inProgress: 18, avgScore: 79.5,
-    subjects: [
-      { name: 'EE110 Circuits', total: 48, completed: 30 },
-      { name: 'EE220 Signals', total: 42, completed: 24 },
-    ],
-  },
-  {
-    id: 'mk', name: 'Marketing', faculty: 'Business', total: 75, completed: 60, inProgress: 8, avgScore: 81.0,
-    subjects: [
-      { name: 'MK310 Marketing Research', total: 40, completed: 33 },
-      { name: 'MK220 Consumer Behavior', total: 35, completed: 27 },
-    ],
-  },
-  {
-    id: 'ac', name: 'Accounting', faculty: 'Business', total: 80, completed: 40, inProgress: 22, avgScore: 77.8,
-    subjects: [
-      { name: 'AC220 Financial Accounting', total: 44, completed: 24 },
-      { name: 'AC330 Managerial Accounting', total: 36, completed: 16 },
-    ],
-  },
-  {
-    id: 'ph', name: 'Physics', faculty: 'Science', total: 60, completed: 51, inProgress: 5, avgScore: 88.1,
-    subjects: [
-      { name: 'PH150 General Physics', total: 34, completed: 30 },
-      { name: 'PH240 Modern Physics', total: 26, completed: 21 },
-    ],
-  },
-  {
-    id: 'ma', name: 'Mathematics', faculty: 'Science', total: 70, completed: 35, inProgress: 15, avgScore: 75.4,
-    subjects: [
-      { name: 'MA200 Calculus II', total: 40, completed: 20 },
-      { name: 'MA310 Linear Algebra', total: 30, completed: 15 },
-    ],
-  },
-];
-
-/** Average-score trend across evaluation rounds, keyed by faculty (+ "all"). */
-const TREND: Record<string, TrendPoint[]> = {
-  all: [
-    { label: 'R1', value: 74 }, { label: 'R2', value: 76 }, { label: 'R3', value: 78 },
-    { label: 'R4', value: 79 }, { label: 'R5', value: 81 }, { label: 'R6', value: 82 },
-  ],
-  Engineering: [
-    { label: 'R1', value: 72 }, { label: 'R2', value: 74 }, { label: 'R3', value: 77 },
-    { label: 'R4', value: 78 }, { label: 'R5', value: 80 }, { label: 'R6', value: 82 },
-  ],
-  Business: [
-    { label: 'R1', value: 75 }, { label: 'R2', value: 76 }, { label: 'R3', value: 77 },
-    { label: 'R4', value: 78 }, { label: 'R5', value: 79 }, { label: 'R6', value: 80 },
-  ],
-  Science: [
-    { label: 'R1', value: 80 }, { label: 'R2', value: 81 }, { label: 'R3', value: 83 },
-    { label: 'R4', value: 84 }, { label: 'R5', value: 86 }, { label: 'R6', value: 87 },
-  ],
-};
+import {
+  SCORE_ENTRIES,
+  SCORE_TERMS,
+  EVAL_TYPE_META,
+  gradeFor,
+  type EvalType,
+  type ScoreEntry,
+} from '@/data/scores';
+import { ORGANIZATION, subjectByCode, departmentName, facultyOfDepartment } from '@/data/academicData';
 
 const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
-/** A coloured legend dot + label + value row used beside the donut. */
+const EVAL_TYPES = Object.keys(EVAL_TYPE_META) as EvalType[];
+
+/** Grade buckets in display order, each with an accent that matches gradeFor. */
+const GRADE_META: { grade: string; color: string }[] = [
+  { grade: 'A', color: ACCENT.green },
+  { grade: 'B+', color: ACCENT.green },
+  { grade: 'B', color: ACCENT.cyan },
+  { grade: 'C+', color: ACCENT.amber },
+  { grade: 'C', color: ACCENT.amber },
+  { grade: 'D', color: ACCENT.pink },
+  { grade: 'F', color: ACCENT.pink },
+];
+
+/** subjectCode → its department / faculty, resolved once from academic data. */
+const SUBJECT_META = new Map<string, { deptName: string; facultyId?: string }>();
+for (const code of new Set(SCORE_ENTRIES.map((e) => e.subjectCode))) {
+  const subj = subjectByCode(code);
+  const deptId = subj?.departmentId;
+  const fac = deptId ? facultyOfDepartment(deptId) : undefined;
+  SUBJECT_META.set(code, { deptName: deptId ? departmentName(deptId) : 'อื่น ๆ', facultyId: fac?.id });
+}
+const facultyOfEntry = (e: ScoreEntry) => SUBJECT_META.get(e.subjectCode)?.facultyId;
+const deptOfEntry = (e: ScoreEntry) => SUBJECT_META.get(e.subjectCode)?.deptName ?? 'อื่น ๆ';
+
+/** A coloured legend dot + label + value row shown beside a donut. */
 function LegendRow({ color, label, value }: { color: string; label: string; value: string }) {
   return (
     <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
@@ -140,412 +72,294 @@ function LegendRow({ color, label, value }: { color: string; label: string; valu
   );
 }
 
+/** Section card with a title, optional caption, and chart body. */
+function ChartCard({
+  title,
+  caption,
+  children,
+}: {
+  title: string;
+  caption?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline', mb: 1.5 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {title}
+          </Typography>
+          {caption && (
+            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'right' }}>
+              {caption}
+            </Typography>
+          )}
+        </Stack>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const [faculty, setFaculty] = React.useState('all');
-  const [term, setTerm] = React.useState(TERMS[0]);
-  const [selectedDept, setSelectedDept] = React.useState<string | null>(null);
-  // Bumped by the Refresh button to restamp the "last updated" time.
+  const [term, setTerm] = React.useState('all');
   const [refreshedAt, setRefreshedAt] = React.useState<Date | null>(null);
 
-  React.useEffect(() => {
-    setRefreshedAt(new Date());
-  }, []);
+  React.useEffect(() => setRefreshedAt(new Date()), []);
 
-  // Departments in scope for the active faculty filter.
-  const depts = React.useMemo(
-    () => (faculty === 'all' ? DEPARTMENTS : DEPARTMENTS.filter((d) => d.faculty === faculty)),
+  // Entries in the selected faculty (all terms) — used for the term trend.
+  const facultyEntries = React.useMemo(
+    () => (faculty === 'all' ? SCORE_ENTRIES : SCORE_ENTRIES.filter((e) => facultyOfEntry(e) === faculty)),
     [faculty],
   );
+  // Fully filtered set (faculty + term) — drives everything except the trend.
+  const entries = React.useMemo(
+    () => (term === 'all' ? facultyEntries : facultyEntries.filter((e) => e.term === term)),
+    [facultyEntries, term],
+  );
 
-  // Aggregate KPIs across the filtered departments.
   const agg = React.useMemo(() => {
-    const total = depts.reduce((s, d) => s + d.total, 0);
-    const completed = depts.reduce((s, d) => s + d.completed, 0);
-    const inProgress = depts.reduce((s, d) => s + d.inProgress, 0);
-    const notStarted = Math.max(0, total - completed - inProgress);
-    const avgScore =
-      total > 0 ? depts.reduce((s, d) => s + d.avgScore * d.total, 0) / total : 0;
-    return { total, completed, inProgress, notStarted, avgScore, progress: pct(completed, total) };
-  }, [depts]);
+    const total = entries.length;
+    const submitted = entries.filter((e) => e.status === 'submitted').length;
+    const pending = total - submitted;
+    const scored = entries.filter((e) => e.scorePercent != null).map((e) => e.scorePercent as number);
+    const passed = entries.filter((e) => e.scorePercent != null && (e.scorePercent as number) >= e.passThreshold).length;
+    return {
+      total,
+      submitted,
+      pending,
+      progress: pct(submitted, total),
+      avg: mean(scored),
+      passRate: scored.length ? pct(passed, scored.length) : 0,
+      targets: new Set(entries.map((e) => e.target)).size,
+      subjects: new Set(entries.map((e) => e.subjectCode)).size,
+      evaluators: new Set(entries.map((e) => e.evaluator)).size,
+    };
+  }, [entries]);
 
-  const donutSegments = React.useMemo(
+  // Average score by term (trend) — ascending, only terms with submitted scores.
+  const trend = React.useMemo(() => {
+    const terms = Array.from(new Set(facultyEntries.map((e) => e.term))).sort();
+    return terms
+      .map((t) => {
+        const scored = facultyEntries
+          .filter((e) => e.term === t && e.scorePercent != null)
+          .map((e) => e.scorePercent as number);
+        return { label: t, value: scored.length ? Math.round(mean(scored)) : 0 };
+      })
+      .filter((p) => p.value > 0);
+  }, [facultyEntries]);
+
+  // Status donut segments.
+  const statusSegments = React.useMemo(
     () => [
-      { label: 'Completed', value: agg.completed, color: ACCENT.green },
-      { label: 'In Progress', value: agg.inProgress, color: ACCENT.blue },
-      { label: 'Not Started', value: agg.notStarted, color: ACCENT.amber },
+      { label: 'ส่งแล้ว', value: agg.submitted, color: ACCENT.green },
+      { label: 'รอประเมิน', value: agg.pending, color: ACCENT.amber },
     ],
     [agg],
   );
 
-  const bars = React.useMemo<BarDatum[]>(
+  // Evaluation-type donut segments.
+  const evalTypeSegments = React.useMemo(
     () =>
-      depts.map((d) => ({
-        id: d.id,
-        label: d.name,
-        value: pct(d.completed, d.total),
-        color: ACCENT.violet,
-        caption: `${d.completed}/${d.total} completed · avg ${d.avgScore.toFixed(1)}`,
-      })),
-    [depts],
+      EVAL_TYPES.map((t) => ({
+        label: EVAL_TYPE_META[t].label,
+        value: entries.filter((e) => e.evalType === t).length,
+        color: EVAL_TYPE_META[t].color,
+      })).filter((s) => s.value > 0),
+    [entries],
   );
 
-  const trend = TREND[faculty] ?? TREND.all;
-  const selected = depts.find((d) => d.id === selectedDept) ?? null;
+  // Completion % by subject (descending).
+  const completionBySubject = React.useMemo(() => {
+    const codes = Array.from(new Set(entries.map((e) => e.subjectCode)));
+    return codes
+      .map((code) => {
+        const list = entries.filter((e) => e.subjectCode === code);
+        const submitted = list.filter((e) => e.status === 'submitted').length;
+        return { label: code, value: pct(submitted, list.length) };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [entries]);
 
-  // Keep the selection valid when the faculty filter changes.
-  React.useEffect(() => {
-    if (selectedDept && !depts.some((d) => d.id === selectedDept)) setSelectedDept(null);
-  }, [depts, selectedDept]);
+  // Grade distribution (counts across submitted, graded tasks).
+  const gradeDist = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of entries) {
+      if (e.scorePercent == null) continue;
+      const g = gradeFor(e.scorePercent).grade;
+      counts.set(g, (counts.get(g) ?? 0) + 1);
+    }
+    return GRADE_META.map((m) => ({ label: m.grade, value: counts.get(m.grade) ?? 0, color: m.color }));
+  }, [entries]);
+
+  // Average score by department (descending, submitted only).
+  const avgByDept = React.useMemo(() => {
+    const depts = Array.from(new Set(entries.map(deptOfEntry)));
+    return depts
+      .map((name) => {
+        const scored = entries
+          .filter((e) => deptOfEntry(e) === name && e.scorePercent != null)
+          .map((e) => e.scorePercent as number);
+        return { label: name, value: scored.length ? Math.round(mean(scored)) : 0 };
+      })
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }, [entries]);
+
+  const facultyOptions = [
+    { value: 'all', label: 'ทุกคณะ' },
+    ...ORGANIZATION.map((f) => ({ value: f.id, label: f.name })),
+  ];
+  const filtersActive = faculty !== 'all' || term !== 'all';
 
   return (
     <Stack spacing={3}>
       <PageHeader
-        title="Dashboard"
-        description="Overview of evaluation progress and results across the organization."
+        title="แดชบอร์ด"
+        description="ภาพรวมความคืบหน้าและผลการประเมินทั่วทั้งองค์กร — สรุปจากงานประเมินจริงทุกชิ้น"
         actions={
-          <>
-            <Chip
-              size="small"
-              color="success"
-              variant="outlined"
-              label={`Updated ${refreshedAt ? refreshedAt.toLocaleTimeString() : '—'}`}
-            />
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<RefreshIcon />}
-              onClick={() => setRefreshedAt(new Date())}
-            >
-              Refresh
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <Typography variant="caption" color="text.secondary">
+              อัปเดต {refreshedAt ? refreshedAt.toLocaleTimeString('th-TH') : '—'}
+            </Typography>
+            <Button variant="soft" color={ACCENT.violet} startIcon={RefreshIcon} onClick={() => setRefreshedAt(new Date())}>
+              รีเฟรช
             </Button>
-          </>
+          </Stack>
         }
       />
 
-      {/* Filters */}
-      <Card>
-        <CardContent>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'center' }}>
-            <TextField
-              select
-              size="small"
-              label="Faculty"
-              value={faculty}
-              onChange={(e) => setFaculty(e.target.value)}
-              sx={{ minWidth: 200 }}
-            >
-              <MenuItem value="all">All faculties</MenuItem>
-              {FACULTIES.map((f) => (
-                <MenuItem key={f} value={f}>
-                  {f}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              size="small"
-              label="Academic Term"
-              value={term}
-              onChange={(e) => setTerm(e.target.value)}
-              sx={{ minWidth: 220 }}
-            >
-              {TERMS.map((t) => (
-                <MenuItem key={t} value={t}>
-                  {t}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Box sx={{ flexGrow: 1 }} />
-            <Typography variant="caption" color="text.secondary">
-              {depts.length} department{depts.length === 1 ? '' : 's'} in view
-            </Typography>
-          </Stack>
-        </CardContent>
-      </Card>
+      <FilterBar
+        filters={[
+          { key: 'faculty', label: 'คณะ', value: faculty, onChange: setFaculty, minWidth: 220, options: facultyOptions },
+          {
+            key: 'term',
+            label: 'เทอม',
+            value: term,
+            onChange: setTerm,
+            minWidth: 140,
+            options: [{ value: 'all', label: 'ทุกเทอม' }, ...SCORE_TERMS.map((t) => ({ value: t, label: t }))],
+          },
+        ]}
+        onReset={() => {
+          setFaculty('all');
+          setTerm('all');
+        }}
+        active={filtersActive}
+        actions={
+          <Typography variant="caption" color="text.secondary">
+            {agg.total.toLocaleString()} งานประเมินในมุมมองนี้
+          </Typography>
+        }
+      />
 
-      {/* KPI row — large cards */}
+      {/* KPI row — large */}
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <KpiCard
-            label="Overall Progress"
-            value={`${agg.progress}%`}
-            icon={DonutLargeIcon}
-            color={ACCENT.violet}
-            caption={`${agg.completed} of ${agg.total} evaluations`}
-            delta={{ value: 4, period: 'vs last term' }}
-          />
+          <KpiCard label="ความคืบหน้ารวม" value={`${agg.progress}%`} icon={DonutLargeIcon} color={ACCENT.violet} caption={`ส่งแล้ว ${agg.submitted}/${agg.total} งาน`} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <KpiCard
-            label="Completed"
-            value={agg.completed.toLocaleString()}
-            icon={CheckCircleIcon}
-            color={ACCENT.green}
-            caption="Higher than last term"
-            delta={{ value: 8, period: 'vs last term' }}
-          />
+          <KpiCard label="คะแนนเฉลี่ย" value={agg.avg.toFixed(1)} icon={GradeIcon} color={ACCENT.blue} caption="เฉพาะที่ส่งแล้ว" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <KpiCard
-            label="Not Evaluated"
-            value={agg.notStarted}
-            icon={HourglassEmptyIcon}
-            color={ACCENT.amber}
-            caption="Awaiting evaluation"
-            delta={{ value: -5, period: 'vs last term' }}
-          />
+          <KpiCard label="อัตราผ่าน" value={`${agg.passRate}%`} icon={TrendingUpIcon} color={ACCENT.green} caption="ตามเกณฑ์รูบริก" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <KpiCard
-            label="Average Score"
-            value={agg.avgScore.toFixed(1)}
-            icon={GradeIcon}
-            color={ACCENT.blue}
-            caption="Weighted across departments"
-            delta={{ value: 3, period: 'vs last term' }}
-          />
+          <KpiCard label="ผู้ถูกประเมิน" value={agg.targets} icon={GroupIcon} color={ACCENT.cyan} caption="รายชื่อ/ทีมไม่ซ้ำ" />
         </Grid>
       </Grid>
 
-      {/* KPI row — compact cards */}
+      {/* KPI row — compact */}
       <Grid container spacing={2}>
         <Grid size={{ xs: 6, md: 3 }}>
-          <KpiCard
-            variant="compact"
-            label="In Progress"
-            value={agg.inProgress}
-            icon={EditNoteIcon}
-            color={ACCENT.cyan}
-            delta={{ value: 6 }}
-          />
+          <KpiCard variant="compact" label="ส่งแล้ว" value={agg.submitted} icon={CheckCircleIcon} color={ACCENT.green} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <KpiCard
-            variant="compact"
-            label="Departments"
-            value={depts.length}
-            icon={ApartmentIcon}
-            color={ACCENT.violet}
-          />
+          <KpiCard variant="compact" label="รอประเมิน" value={agg.pending} icon={HourglassEmptyIcon} color={ACCENT.amber} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <KpiCard
-            variant="compact"
-            label="Evaluation Rounds"
-            value={trend.length}
-            icon={ReplayIcon}
-            color={ACCENT.pink}
-          />
+          <KpiCard variant="compact" label="จำนวนวิชา" value={agg.subjects} icon={MenuBookIcon} color={ACCENT.violet} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <KpiCard
-            variant="compact"
-            label="Total Evaluations"
-            value={agg.total.toLocaleString()}
-            icon={PeopleIcon}
-            color={ACCENT.green}
-          />
+          <KpiCard variant="compact" label="ผู้ประเมิน" value={agg.evaluators} icon={RateReviewIcon} color={ACCENT.pink} />
         </Grid>
       </Grid>
 
-      {/* Status donut + score trend */}
+      {/* Gauge + score trend */}
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 5 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                Evaluation Status
-              </Typography>
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={3}
-                sx={{ alignItems: 'center' }}
-              >
-                <DonutChart
-                  segments={donutSegments}
-                  centerValue={`${agg.progress}%`}
-                  centerLabel="complete"
-                />
-                <Stack spacing={1.5} sx={{ flexGrow: 1, width: '100%' }}>
-                  <LegendRow color={ACCENT.green} label="Completed" value={String(agg.completed)} />
-                  <LegendRow color={ACCENT.blue} label="In Progress" value={String(agg.inProgress)} />
-                  <LegendRow color={ACCENT.amber} label="Not Started" value={String(agg.notStarted)} />
-                  <Divider />
-                  <LegendRow color="transparent" label="Total" value={String(agg.total)} />
-                </Stack>
-              </Stack>
-            </CardContent>
-          </Card>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <ChartCard title="ความคืบหน้าการประเมิน" caption={`${agg.submitted}/${agg.total}`}>
+            <RadialGauge value={agg.progress} label="ส่งแล้ว" color={ACCENT.violet} />
+            <Stack direction="row" spacing={1} sx={{ mt: 1, justifyContent: 'center' }}>
+              <LegendRow color={ACCENT.green} label="ส่งแล้ว" value={String(agg.submitted)} />
+              <Box sx={{ width: 16 }} />
+              <LegendRow color={ACCENT.amber} label="รอประเมิน" value={String(agg.pending)} />
+            </Stack>
+          </ChartCard>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 7 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Stack
-                direction="row"
-                sx={{ justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Average Score by Round
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {faculty === 'all' ? 'All faculties' : faculty}
-                </Typography>
-              </Stack>
-              <TrendLineChart points={trend} color={ACCENT.violet} min={60} max={100} />
-            </CardContent>
-          </Card>
+        <Grid size={{ xs: 12, md: 8 }}>
+          <ChartCard title="แนวโน้มคะแนนเฉลี่ยรายเทอม" caption={faculty === 'all' ? 'ทุกคณะ' : facultyOptions.find((f) => f.value === faculty)?.label}>
+            {trend.length > 0 ? (
+              <TrendLineChart points={trend} color={ACCENT.violet} min={50} max={100} height={288} />
+            ) : (
+              <Box sx={{ height: 288, display: 'grid', placeItems: 'center' }}>
+                <Typography color="text.secondary">ยังไม่มีคะแนนสำหรับช่วงที่เลือก</Typography>
+              </Box>
+            )}
+          </ChartCard>
         </Grid>
       </Grid>
 
-      {/* Completion by department (drill-down) + detail panel */}
+      {/* Completion by subject + eval-type donut */}
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 7 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Stack
-                direction="row"
-                sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Completion by Department
-                </Typography>
-                <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                  <TouchAppIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-                  <Typography variant="caption" color="text.secondary">
-                    Click a bar to drill down
-                  </Typography>
-                </Stack>
-              </Stack>
-              <BarChart
-                data={bars}
-                selectedId={selectedDept}
-                onSelect={(id) => setSelectedDept((prev) => (prev === id ? null : id))}
-              />
-            </CardContent>
-          </Card>
+          <ChartCard title="อัตราการประเมินเสร็จตามวิชา" caption="% งานที่ส่งแล้ว">
+            <CategoryBarChart data={completionBySubject} color={ACCENT.blue} max={100} valueSuffix="%" height={300} />
+          </ChartCard>
         </Grid>
 
         <Grid size={{ xs: 12, md: 5 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              {selected ? (
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography variant="overline" color="text.secondary">
-                      {selected.faculty}
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-                      {selected.name}
-                    </Typography>
-                    <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                      <Chip size="small" label={`${pct(selected.completed, selected.total)}% done`} color="success" />
-                      <Chip size="small" variant="outlined" label={`Avg ${selected.avgScore.toFixed(1)}`} />
-                    </Stack>
-                  </Box>
-                  <Divider />
-                  <Typography variant="subtitle2">Progress by subject</Typography>
-                  <Stack spacing={1.5}>
-                    {selected.subjects.map((s) => {
-                      const p = pct(s.completed, s.total);
-                      return (
-                        <Box key={s.name}>
-                          <Stack
-                            direction="row"
-                            sx={{ justifyContent: 'space-between', mb: 0.5 }}
-                          >
-                            <Typography variant="body2" noWrap sx={{ mr: 1 }}>
-                              {s.name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {s.completed}/{s.total}
-                            </Typography>
-                          </Stack>
-                          <LinearProgress
-                            variant="determinate"
-                            value={p}
-                            sx={{
-                              height: 8,
-                              borderRadius: 5,
-                              bgcolor: (t) => alpha(t.palette.text.primary, 0.08),
-                            }}
-                          />
-                        </Box>
-                      );
-                    })}
-                  </Stack>
-                </Stack>
-              ) : (
-                <Stack spacing={2}>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Department Ranking
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Sorted by completion. Select a bar for a subject-level breakdown.
-                  </Typography>
-                  <Stack spacing={1.5} sx={{ mt: 0.5 }}>
-                    {[...depts]
-                      .sort((a, b) => pct(b.completed, b.total) - pct(a.completed, a.total))
-                      .map((d, i) => {
-                        const p = pct(d.completed, d.total);
-                        return (
-                          <Stack
-                            key={d.id}
-                            direction="row"
-                            spacing={1.5}
-                            sx={{ alignItems: 'center', cursor: 'pointer' }}
-                            onClick={() => setSelectedDept(d.id)}
-                          >
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                width: 22,
-                                height: 22,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '50%',
-                                fontWeight: 700,
-                                flexShrink: 0,
-                                bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
-                                color: 'primary.main',
-                              }}
-                            >
-                              {i + 1}
-                            </Typography>
-                            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                              <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                                <Typography variant="body2" noWrap sx={{ mr: 1 }}>
-                                  {d.name}
-                                </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                  {p}%
-                                </Typography>
-                              </Stack>
-                              <LinearProgress
-                                variant="determinate"
-                                value={p}
-                                sx={{
-                                  mt: 0.5,
-                                  height: 6,
-                                  borderRadius: 5,
-                                  bgcolor: (t) => alpha(t.palette.text.primary, 0.08),
-                                }}
-                              />
-                            </Box>
-                          </Stack>
-                        );
-                      })}
-                  </Stack>
-                </Stack>
-              )}
-            </CardContent>
-          </Card>
+          <ChartCard title="สัดส่วนตามรูปแบบการประเมิน">
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} sx={{ alignItems: 'center' }}>
+              <DonutChart segments={evalTypeSegments} centerValue={agg.total} centerLabel="งาน" />
+              <Stack spacing={1.25} sx={{ flexGrow: 1, width: '100%' }}>
+                {evalTypeSegments.map((s) => (
+                  <LegendRow key={s.label} color={s.color} label={s.label} value={String(s.value)} />
+                ))}
+                <Divider />
+                <LegendRow color="transparent" label="รวม" value={String(agg.total)} />
+              </Stack>
+            </Stack>
+          </ChartCard>
+        </Grid>
+      </Grid>
+
+      {/* Grade distribution + average by department */}
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 7 }}>
+          <ChartCard title="การกระจายเกรด" caption="จำนวนงานที่ส่งแล้ว">
+            <CategoryBarChart data={gradeDist} color={ACCENT.violet} height={300} />
+          </ChartCard>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 5 }}>
+          <ChartCard title="คะแนนเฉลี่ยตามสาขา" caption="เต็ม 100">
+            {avgByDept.length > 0 ? (
+              <CategoryBarChart data={avgByDept} color={ACCENT.cyan} horizontal max={100} height={300} />
+            ) : (
+              <Box sx={{ height: 300, display: 'grid', placeItems: 'center' }}>
+                <Typography color="text.secondary">ยังไม่มีคะแนน</Typography>
+              </Box>
+            )}
+          </ChartCard>
         </Grid>
       </Grid>
 
       <Typography variant="caption" color="text.secondary">
-        Figures are demo data for {term}. Connect the reporting API to show live results.
+        ข้อมูลสรุปจากงานประเมินจริงในระบบ · เชื่อมต่อ API รายงานเพื่อแสดงผลแบบเรียลไทม์
       </Typography>
     </Stack>
   );

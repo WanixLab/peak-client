@@ -15,6 +15,7 @@ import {
   FormControlLabel,
   FormLabel,
   Grid,
+  IconButton,
   MenuItem,
   Radio,
   RadioGroup,
@@ -60,6 +61,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import SaveIcon from '@mui/icons-material/Save';
 import PublishIcon from '@mui/icons-material/Publish';
 import ViewAgendaIcon from '@mui/icons-material/ViewAgenda';
+import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
 import RuleIcon from '@mui/icons-material/Rule';
@@ -1015,48 +1018,121 @@ function FormBuilder() {
         </Box>
       </Box>
 
-      {/* กล่องดูตัวอย่าง */}
-      <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} fullWidth maxWidth="sm" scroll="paper">
-        <DialogTitle sx={{ pb: 1 }}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: alpha(theme.palette.primary.main, 0.12), color: 'primary.main' }}>
-              <VisibilityIcon />
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>
-                {formName}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {category} · ตัวอย่าง · v{version}
-              </Typography>
-            </Box>
+      {/* กล่องดูตัวอย่าง — จำลองหน้าตาแบบฟอร์มที่ผู้ตอบเห็นจริง */}
+      <Dialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        fullWidth
+        maxWidth="md"
+        scroll="paper"
+        slotProps={{ paper: { sx: { borderRadius: 3, overflow: 'hidden' } } }}
+      >
+        {/* หัวกล่อง: แถบไล่สีมีชื่อฟอร์ม หมวด และป้ายกำกับว่าเป็นตัวอย่าง */}
+        <Box
+          sx={{
+            position: 'relative',
+            px: 3,
+            py: 2.5,
+            color: 'common.white',
+            background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.dark ?? theme.palette.primary.main, 0.85)})`,
+          }}
+        >
+          <IconButton
+            onClick={() => setPreviewOpen(false)}
+            aria-label="ปิด"
+            size="small"
+            sx={{ position: 'absolute', top: 12, right: 12, color: alpha('#fff', 0.9), '&:hover': { bgcolor: alpha('#fff', 0.15) } }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+          <Box
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.5,
+              px: 1,
+              py: 0.375,
+              borderRadius: 1,
+              bgcolor: alpha('#fff', 0.2),
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            <VisibilityIcon sx={{ fontSize: 14 }} />
+            ตัวอย่าง
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, mt: 1.25, lineHeight: 1.2 }}>
+            {formName || 'แบบฟอร์มไม่มีชื่อ'}
+          </Typography>
+          <Stack direction="row" spacing={2} sx={{ mt: 1, flexWrap: 'wrap', color: alpha('#fff', 0.92) }}>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>{category}</Typography>
+            <Typography variant="caption">·</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>{stats.sections} ส่วน · {stats.fields} ช่อง</Typography>
+            <Typography variant="caption">·</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>v{version} {published ? '· เผยแพร่แล้ว' : '· ฉบับร่าง'}</Typography>
           </Stack>
-        </DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={3}>
-            {sections.map((section) => (
-              <Box key={section.id}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {section.title}
-                </Typography>
-                {section.description && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                    {section.description}
-                  </Typography>
-                )}
-                <Stack spacing={2.5} sx={{ mt: 1.5 }}>
-                  {section.fields.length === 0 ? (
-                    <Typography variant="body2" color="text.disabled">ไม่มีช่องในส่วนนี้</Typography>
-                  ) : (
-                    section.fields.map((field) => <FieldPreview key={field.id} field={field} />)
-                  )}
-                </Stack>
-                <Divider sx={{ mt: 3 }} />
-              </Box>
+        </Box>
+
+        <DialogContent sx={{ bgcolor: (t) => alpha(t.palette.text.primary, 0.02), p: { xs: 2, sm: 3 } }}>
+          <Stack spacing={2.5} sx={{ maxWidth: 640, mx: 'auto' }}>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'error.main' }}>
+              <Box component="span" sx={{ fontWeight: 700 }}>*</Box>
+              <Typography variant="caption" color="text.secondary">ช่องที่มีเครื่องหมายดอกจันจำเป็นต้องกรอก</Typography>
+            </Stack>
+
+            {sections.map((section, i) => (
+              <Card key={section.id} variant="outlined" sx={{ borderRadius: 2.5, borderColor: 'divider' }}>
+                <Box sx={{ height: 4, bgcolor: 'primary.main' }} />
+                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', mb: section.description ? 0.5 : 2 }}>
+                    <Box
+                      sx={{
+                        width: 30,
+                        height: 30,
+                        flexShrink: 0,
+                        borderRadius: '50%',
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontWeight: 800,
+                        fontSize: 14,
+                        bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
+                        color: 'primary.main',
+                      }}
+                    >
+                      {i + 1}
+                    </Box>
+                    <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+                        {section.title}
+                      </Typography>
+                      {section.description && (
+                        <Typography variant="body2" color="text.secondary">
+                          {section.description}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Stack>
+
+                  <Stack spacing={2.5} sx={{ mt: 2 }}>
+                    {section.fields.length === 0 ? (
+                      <Typography variant="body2" color="text.disabled">ไม่มีช่องในส่วนนี้</Typography>
+                    ) : (
+                      section.fields.map((field) => <FieldPreview key={field.id} field={field} />)
+                    )}
+                  </Stack>
+                </CardContent>
+              </Card>
             ))}
-            <Button variant="solid" color={ACCENT.violet} size="lg" disabled style={{ alignSelf: 'flex-start' }}>
-              ส่งการประเมิน
-            </Button>
+
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'space-between', pt: 0.5 }}>
+              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.disabled' }}>
+                <CheckCircleIcon sx={{ fontSize: 16 }} />
+                <Typography variant="caption">พรีวิว — ปุ่มส่งถูกปิดไว้</Typography>
+              </Stack>
+              <Button variant="solid" color={ACCENT.violet} size="lg" disabled>
+                ส่งการประเมิน
+              </Button>
+            </Stack>
           </Stack>
         </DialogContent>
       </Dialog>

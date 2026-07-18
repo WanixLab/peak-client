@@ -43,6 +43,12 @@
       "icon": "Grade",
       "children": [
         {
+          "id": "scores-me",
+          "title": "My Scores",
+          "path": "/scores/me",
+          "icon": "Grade"
+        },
+        {
           "id": "scores-view",
           "title": "View Scores",
           "path": "/scores/view",
@@ -61,6 +67,12 @@
       "title": "Form Management",
       "icon": "DynamicForm",
       "children": [
+        {
+          "id": "form-list",
+          "title": "Form List",
+          "path": "/forms/list",
+          "icon": "FactCheck"
+        },
         {
           "id": "form-builder",
           "title": "Form Builder",
@@ -99,9 +111,9 @@
           "icon": "CalendarMonth"
         },
         {
-          "id": "subjects",
-          "title": "Subjects",
-          "path": "/academic-data/subjects",
+          "id": "courses",
+          "title": "Courses",
+          "path": "/academic-data/courses",
           "icon": "MenuBook"
         },
         {

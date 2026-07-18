@@ -1,121 +1,125 @@
 'use client';
 
 import * as React from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  Grid,
-  InputAdornment,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Box, Card, Grid, Stack, Typography } from '@mui/material';
 import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
-import SearchIcon from '@mui/icons-material/Search';
 import GradeIcon from '@mui/icons-material/Grade';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import PendingActionsIcon from '@mui/icons-material/PendingActions';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import GroupsIcon from '@mui/icons-material/Groups';
+import PersonIcon from '@mui/icons-material/Person';
 import PageHeader from '@/components/common/PageHeader';
-import StatTile from '@/components/common/StatTile';
+import KpiCard from '@/components/common/KpiCard';
+import FilterBar from '@/components/common/FilterBar';
+import Button from '@/components/common/Button';
+import Chip from '@/components/common/Chip';
 import { ACCENT } from '@/theme/accents';
+import {
+  SCORE_ENTRIES,
+  SCORE_SUBJECTS,
+  SCORE_TERMS,
+  EVAL_TYPE_META,
+  gradeFor,
+  toCsv,
+  downloadCsv,
+  type EvalType,
+  type ScoreEntry,
+} from '@/data/scores';
 
-/** A single evaluation result. Replace this demo data with an API call. */
-interface ScoreRow {
-  id: number;
-  member: string;
-  subjectCode: string;
-  subject: string;
-  evaluator: string;
-  term: string;
-  score: number;
-  status: 'Finalized' | 'In review' | 'Draft';
-  date: string;
+const dateFmt = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+
+const EVAL_TYPES = Object.keys(EVAL_TYPE_META) as EvalType[];
+
+/** Download the given rows as a UTF-8 CSV (BOM prefixed so Excel reads Thai). */
+function exportCsv(rows: ScoreEntry[]) {
+  const headers = ['ผู้ถูกประเมิน', 'ประเภท', 'รหัสวิชา', 'วิชา', 'ผู้ประเมิน', 'รูปแบบ', 'เทอม', 'คะแนน', 'สถานะ', 'วันที่ส่ง'];
+  const body = rows.map((r) => [
+    r.target,
+    r.targetKind === 'group' ? 'กลุ่ม' : 'รายบุคคล',
+    r.subjectCode,
+    r.subject,
+    r.evaluator,
+    EVAL_TYPE_META[r.evalType].label,
+    r.term,
+    r.scorePercent ?? '',
+    r.status === 'submitted' ? 'ส่งแล้ว' : 'รอประเมิน',
+    r.submittedAt ?? '',
+  ]);
+  downloadCsv(`scores-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(headers, body));
 }
-
-const PASS_MARK = 60;
-
-const ROWS: ScoreRow[] = [
-  { id: 1, member: 'Somchai Prasert', subjectCode: 'CS101', subject: 'Introduction to Programming', evaluator: 'Dr. Anong W.', term: '2569 / 1', score: 88, status: 'Finalized', date: '2026-06-28' },
-  { id: 2, member: 'Kanya Sukjai', subjectCode: 'CS205', subject: 'Data Structures', evaluator: 'Dr. Anong W.', term: '2569 / 1', score: 76, status: 'Finalized', date: '2026-06-27' },
-  { id: 3, member: 'Nattapong K.', subjectCode: 'MK310', subject: 'Marketing Research', evaluator: 'Aj. Prasit T.', term: '2569 / 1', score: 63, status: 'In review', date: '2026-06-30' },
-  { id: 4, member: 'Ploy Chalermsuk', subjectCode: 'AC220', subject: 'Financial Accounting', evaluator: 'Aj. Suda M.', term: '2569 / 1', score: 54, status: 'In review', date: '2026-07-01' },
-  { id: 5, member: 'Wichai Rungroj', subjectCode: 'CS101', subject: 'Introduction to Programming', evaluator: 'Dr. Anong W.', term: '2569 / 1', score: 91, status: 'Finalized', date: '2026-06-25' },
-  { id: 6, member: 'Suda Meechai', subjectCode: 'PH150', subject: 'General Physics', evaluator: 'Dr. Kittset L.', term: '2568 / 2', score: 72, status: 'Finalized', date: '2026-03-14' },
-  { id: 7, member: 'Anucha Boonme', subjectCode: 'MA200', subject: 'Calculus II', evaluator: 'Dr. Kittset L.', term: '2568 / 2', score: 48, status: 'Finalized', date: '2026-03-12' },
-  { id: 8, member: 'Jiraporn N.', subjectCode: 'MK310', subject: 'Marketing Research', evaluator: 'Aj. Prasit T.', term: '2569 / 1', score: 84, status: 'Draft', date: '2026-07-05' },
-  { id: 9, member: 'Thanawat S.', subjectCode: 'CS205', subject: 'Data Structures', evaluator: 'Dr. Anong W.', term: '2569 / 1', score: 69, status: 'In review', date: '2026-07-02' },
-  { id: 10, member: 'Manee Rakdee', subjectCode: 'AC220', subject: 'Financial Accounting', evaluator: 'Aj. Suda M.', term: '2569 / 1', score: 79, status: 'Finalized', date: '2026-06-29' },
-  { id: 11, member: 'Chai Watchara', subjectCode: 'PH150', subject: 'General Physics', evaluator: 'Dr. Kittset L.', term: '2568 / 2', score: 58, status: 'Finalized', date: '2026-03-10' },
-  { id: 12, member: 'Pim Srisawat', subjectCode: 'CS101', subject: 'Introduction to Programming', evaluator: 'Dr. Anong W.', term: '2569 / 1', score: 95, status: 'Draft', date: '2026-07-06' },
-];
-
-const TERMS = ['2569 / 1', '2568 / 2'];
-const SUBJECTS = Array.from(new Set(ROWS.map((r) => r.subject)));
-
-/** Letter grade + chip colour derived from a numeric score. */
-function gradeFor(score: number): { grade: string; color: 'success' | 'warning' | 'error' } {
-  if (score >= 80) return { grade: 'A', color: 'success' };
-  if (score >= 75) return { grade: 'B+', color: 'success' };
-  if (score >= 70) return { grade: 'B', color: 'success' };
-  if (score >= 65) return { grade: 'C+', color: 'warning' };
-  if (score >= 60) return { grade: 'C', color: 'warning' };
-  if (score >= 50) return { grade: 'D', color: 'error' };
-  return { grade: 'F', color: 'error' };
-}
-
-const statusColor: Record<ScoreRow['status'], 'success' | 'info' | 'default'> = {
-  Finalized: 'success',
-  'In review': 'info',
-  Draft: 'default',
-};
-
-const dateFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 export default function ViewScoresPage() {
+  const [search, setSearch] = React.useState('');
   const [term, setTerm] = React.useState('all');
   const [subject, setSubject] = React.useState('all');
-  const [search, setSearch] = React.useState('');
+  const [evalType, setEvalType] = React.useState('all');
+  const [status, setStatus] = React.useState('all');
 
   const rows = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    return ROWS.filter(
+    return SCORE_ENTRIES.filter(
       (r) =>
         (term === 'all' || r.term === term) &&
-        (subject === 'all' || r.subject === subject) &&
+        (subject === 'all' || r.subjectCode === subject) &&
+        (evalType === 'all' || r.evalType === evalType) &&
+        (status === 'all' || r.status === status) &&
         (q === '' ||
-          r.member.toLowerCase().includes(q) ||
+          r.target.toLowerCase().includes(q) ||
           r.subject.toLowerCase().includes(q) ||
           r.subjectCode.toLowerCase().includes(q) ||
-          r.evaluator.toLowerCase().includes(q)),
+          r.evaluator.toLowerCase().includes(q) ||
+          r.title.toLowerCase().includes(q)),
     );
-  }, [term, subject, search]);
+  }, [search, term, subject, evalType, status]);
 
   const summary = React.useMemo(() => {
-    const count = rows.length;
-    const avg = count ? rows.reduce((sum, r) => sum + r.score, 0) / count : 0;
-    const passed = rows.filter((r) => r.score >= PASS_MARK).length;
-    const finalized = rows.filter((r) => r.status === 'Finalized').length;
+    const total = rows.length;
+    const submitted = rows.filter((r) => r.status === 'submitted');
+    const scored = submitted.filter((r) => r.scorePercent != null);
+    const avg = scored.length
+      ? scored.reduce((s, r) => s + (r.scorePercent ?? 0), 0) / scored.length
+      : 0;
+    const passed = scored.filter((r) => (r.scorePercent ?? 0) >= r.passThreshold).length;
     return {
+      total,
+      submitted: submitted.length,
+      progress: total ? Math.round((submitted.length / total) * 100) : 0,
       avg: avg.toFixed(1),
-      passRate: count ? Math.round((passed / count) * 100) : 0,
-      finalized,
-      pending: count - finalized,
+      passRate: scored.length ? Math.round((passed / scored.length) * 100) : 0,
+      pending: total - submitted.length,
     };
   }, [rows]);
 
-  const columns = React.useMemo<GridColDef<ScoreRow>[]>(
+  const columns = React.useMemo<GridColDef<ScoreEntry>[]>(
     () => [
-      { field: 'member', headerName: 'Member', flex: 1.2, minWidth: 160 },
+      {
+        field: 'target',
+        headerName: 'ผู้ถูกประเมิน',
+        flex: 1.3,
+        minWidth: 200,
+        renderCell: (params: GridRenderCellParams<ScoreEntry>) => (
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
+            <Chip
+              size="sm"
+              variant="soft"
+              icon={params.row.targetKind === 'group' ? GroupsIcon : PersonIcon}
+              color={params.row.targetKind === 'group' ? ACCENT.violet : ACCENT.blue}
+              label={params.row.targetKind === 'group' ? 'กลุ่ม' : 'บุคคล'}
+            />
+            <Typography variant="body2" noWrap>
+              {params.row.target}
+            </Typography>
+          </Stack>
+        ),
+      },
       {
         field: 'subject',
-        headerName: 'Subject',
-        flex: 1.4,
-        minWidth: 220,
-        renderCell: (params: GridRenderCellParams<ScoreRow>) => (
+        headerName: 'วิชา',
+        flex: 1.3,
+        minWidth: 200,
+        renderCell: (params: GridRenderCellParams<ScoreEntry>) => (
           <Box sx={{ lineHeight: 1.3, py: 0.5 }}>
             <Typography variant="body2" noWrap>
               {params.row.subject}
@@ -126,130 +130,168 @@ export default function ViewScoresPage() {
           </Box>
         ),
       },
-      { field: 'evaluator', headerName: 'Evaluator', flex: 1, minWidth: 140 },
-      { field: 'term', headerName: 'Term', width: 100 },
+      { field: 'evaluator', headerName: 'ผู้ประเมิน', flex: 1, minWidth: 150 },
       {
-        field: 'score',
-        headerName: 'Score',
+        field: 'evalType',
+        headerName: 'รูปแบบ',
+        width: 130,
+        renderCell: (params: GridRenderCellParams<ScoreEntry>) => {
+          const meta = EVAL_TYPE_META[params.row.evalType];
+          return <Chip size="sm" variant="soft" color={meta.color} label={meta.label} />;
+        },
+      },
+      { field: 'term', headerName: 'เทอม', width: 100, align: 'center', headerAlign: 'center' },
+      {
+        field: 'scorePercent',
+        headerName: 'คะแนน',
         width: 90,
         type: 'number',
         align: 'center',
         headerAlign: 'center',
-        renderCell: (params: GridRenderCellParams<ScoreRow, number>) => (
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 700, color: `${gradeFor(params.value ?? 0).color}.main` }}
-          >
-            {params.value}
-          </Typography>
-        ),
+        renderCell: (params: GridRenderCellParams<ScoreEntry>) =>
+          params.row.scorePercent == null ? (
+            <Typography variant="body2" color="text.disabled">
+              —
+            </Typography>
+          ) : (
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 700, color: gradeFor(params.row.scorePercent).color, fontVariantNumeric: 'tabular-nums' }}
+            >
+              {params.row.scorePercent}
+            </Typography>
+          ),
       },
       {
         field: 'grade',
-        headerName: 'Grade',
-        width: 90,
+        headerName: 'เกรด',
+        width: 80,
         align: 'center',
         headerAlign: 'center',
         sortable: false,
-        valueGetter: (_value, row) => gradeFor(row.score).grade,
-        renderCell: (params: GridRenderCellParams<ScoreRow>) => {
-          const g = gradeFor(params.row.score);
-          return <Chip size="small" label={g.grade} color={g.color} variant="outlined" />;
+        renderCell: (params: GridRenderCellParams<ScoreEntry>) => {
+          if (params.row.scorePercent == null) return null;
+          const g = gradeFor(params.row.scorePercent);
+          const passed = params.row.scorePercent >= params.row.passThreshold;
+          return <Chip size="sm" variant={passed ? 'soft' : 'outlined'} color={g.color} label={g.grade} />;
         },
       },
       {
         field: 'status',
-        headerName: 'Status',
+        headerName: 'สถานะ',
         width: 120,
-        renderCell: (params: GridRenderCellParams<ScoreRow>) => (
-          <Chip size="small" label={params.row.status} color={statusColor[params.row.status]} />
-        ),
+        renderCell: (params: GridRenderCellParams<ScoreEntry>) =>
+          params.row.status === 'submitted' ? (
+            <Chip size="sm" variant="solid" color={ACCENT.green} label="ส่งแล้ว" />
+          ) : (
+            <Chip size="sm" variant="outlined" color={ACCENT.amber} label="รอประเมิน" />
+          ),
       },
       {
-        field: 'date',
-        headerName: 'Evaluated',
-        width: 130,
-        valueFormatter: (value: string) => dateFmt.format(new Date(value)),
+        field: 'submittedAt',
+        headerName: 'วันที่ส่ง',
+        width: 120,
+        valueFormatter: (value: string | null) => (value ? dateFmt.format(new Date(value)) : '—'),
       },
     ],
     [],
   );
 
+  const filtersActive =
+    term !== 'all' || subject !== 'all' || evalType !== 'all' || status !== 'all' || search.trim() !== '';
+  const resetFilters = () => {
+    setTerm('all');
+    setSubject('all');
+    setEvalType('all');
+    setStatus('all');
+    setSearch('');
+  };
+
   return (
     <Stack spacing={3}>
-      <PageHeader title="View Scores" description="Browse and filter evaluation results." />
+      <PageHeader
+        title="คะแนน"
+        description="ผลการประเมินทั้งหมด — หนึ่งแถวคือหนึ่งงานประเมิน (ผู้ประเมิน × ผู้ถูกประเมิน) พร้อมคะแนนและสถานะการส่ง"
+        actions={
+          <Button variant="soft" color={ACCENT.blue} startIcon={FileDownloadIcon} onClick={() => exportCsv(rows)}>
+            ส่งออก CSV
+          </Button>
+        }
+      />
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Average Score" value={summary.avg} icon={GradeIcon} color={ACCENT.violet} hint="Across shown results" />
+          <KpiCard
+            label="ส่งแล้ว"
+            value={`${summary.submitted}/${summary.total}`}
+            icon={TaskAltIcon}
+            color={ACCENT.violet}
+            caption={`คืบหน้า ${summary.progress}%`}
+          />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Pass Rate" value={`${summary.passRate}%`} icon={TrendingUpIcon} color={ACCENT.green} hint={`Pass mark ${PASS_MARK}`} />
+          <KpiCard label="คะแนนเฉลี่ย" value={summary.avg} icon={GradeIcon} color={ACCENT.blue} caption="เฉพาะที่ส่งแล้ว" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Finalized" value={summary.finalized} icon={CheckCircleIcon} color={ACCENT.blue} hint="Locked results" />
+          <KpiCard label="อัตราผ่าน" value={`${summary.passRate}%`} icon={TrendingUpIcon} color={ACCENT.green} caption="ตามเกณฑ์ผ่านของรูบริก" />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatTile label="Pending" value={summary.pending} icon={PendingActionsIcon} color={ACCENT.amber} hint="In review or draft" />
+          <KpiCard label="รอประเมิน" value={summary.pending} icon={PendingActionsIcon} color={ACCENT.amber} caption="ยังไม่ส่งคะแนน" />
         </Grid>
       </Grid>
 
-      <Card>
-        <CardContent>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            <TextField
-              select
-              size="small"
-              label="Term"
-              value={term}
-              onChange={(e) => setTerm(e.target.value)}
-              sx={{ minWidth: 160 }}
-            >
-              <MenuItem value="all">All terms</MenuItem>
-              {TERMS.map((t) => (
-                <MenuItem key={t} value={t}>
-                  {t}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              size="small"
-              label="Subject"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              sx={{ minWidth: 220 }}
-            >
-              <MenuItem value="all">All subjects</MenuItem>
-              {SUBJECTS.map((s) => (
-                <MenuItem key={s} value={s}>
-                  {s}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Box sx={{ flexGrow: 1 }} />
-            <TextField
-              size="small"
-              placeholder="Search member, subject, evaluator…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ minWidth: { xs: '100%', md: 280 } }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-          </Stack>
-        </CardContent>
-      </Card>
+      <FilterBar
+        search={{ value: search, onChange: setSearch, placeholder: 'ค้นหาผู้ถูกประเมิน วิชา ผู้ประเมิน…' }}
+        filters={[
+          {
+            key: 'term',
+            label: 'เทอม',
+            value: term,
+            onChange: setTerm,
+            minWidth: 130,
+            options: [{ value: 'all', label: 'ทุกเทอม' }, ...SCORE_TERMS.map((t) => ({ value: t, label: t }))],
+          },
+          {
+            key: 'subject',
+            label: 'วิชา',
+            value: subject,
+            onChange: setSubject,
+            minWidth: 190,
+            options: [
+              { value: 'all', label: 'ทุกวิชา' },
+              ...SCORE_SUBJECTS.map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` })),
+            ],
+          },
+          {
+            key: 'evalType',
+            label: 'รูปแบบ',
+            value: evalType,
+            onChange: setEvalType,
+            minWidth: 150,
+            options: [
+              { value: 'all', label: 'ทุกรูปแบบ' },
+              ...EVAL_TYPES.map((t) => ({ value: t, label: EVAL_TYPE_META[t].label })),
+            ],
+          },
+          {
+            key: 'status',
+            label: 'สถานะ',
+            value: status,
+            onChange: setStatus,
+            minWidth: 140,
+            options: [
+              { value: 'all', label: 'ทุกสถานะ' },
+              { value: 'submitted', label: 'ส่งแล้ว' },
+              { value: 'pending', label: 'รอประเมิน' },
+            ],
+          },
+        ]}
+        onReset={resetFilters}
+        active={filtersActive}
+      />
 
       <Card>
-        <DataGrid<ScoreRow>
+        <DataGrid<ScoreEntry>
           rows={rows}
           columns={columns}
           getRowId={(row) => row.id}
@@ -257,7 +299,7 @@ export default function ViewScoresPage() {
           pageSizeOptions={[10, 25, 50]}
           initialState={{
             pagination: { paginationModel: { pageSize: 10, page: 0 } },
-            sorting: { sortModel: [{ field: 'date', sort: 'desc' }] },
+            sorting: { sortModel: [{ field: 'submittedAt', sort: 'desc' }] },
           }}
           sx={{ border: 0, minHeight: 420 }}
         />

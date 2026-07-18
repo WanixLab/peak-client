@@ -39,6 +39,8 @@ import ScienceIcon from '@mui/icons-material/Science';
 import DynamicFormIcon from '@mui/icons-material/DynamicForm';
 import GradeIcon from '@mui/icons-material/Grade';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
+import AutoAwesomeMotionIcon from '@mui/icons-material/AutoAwesomeMotion';
 import PageHeader from '@/components/common/PageHeader';
 import KpiCard from '@/components/common/KpiCard';
 import FilterBar from '@/components/common/FilterBar';
@@ -53,9 +55,11 @@ import {
   computeScore,
   getForm,
   getScorableField,
+  makeDefaultLevels,
   type Formula,
   type Rubric,
   type RubricCriterion,
+  type RubricLevel,
 } from '@/data/formManagement';
 
 let seq = 100;
@@ -137,6 +141,50 @@ function RubricCard({
             );
           })}
         </Stack>
+
+        {rubric.scaleLevels && rubric.scaleLevels.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mb: 0.75 }}>
+              <FormatListNumberedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                ความหมายของคะแนน
+              </Typography>
+            </Stack>
+            <Stack spacing={0.5}>
+              {[...rubric.scaleLevels]
+                .sort((a, b) => b.score - a.score)
+                .map((lv, i) => (
+                  <Stack key={i} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                    <Box
+                      sx={{
+                        minWidth: 20,
+                        height: 20,
+                        px: 0.5,
+                        borderRadius: 1,
+                        flexShrink: 0,
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontSize: 11,
+                        fontWeight: 800,
+                        bgcolor: alpha(ACCENT.violet, 0.12),
+                        color: ACCENT.violet,
+                      }}
+                    >
+                      {lv.score}
+                    </Box>
+                    <Typography variant="caption" sx={{ fontWeight: 600, flexShrink: 0 }}>
+                      {lv.label}
+                    </Typography>
+                    {lv.description && (
+                      <Typography variant="caption" color="text.secondary" noWrap sx={{ minWidth: 0 }}>
+                        — {lv.description}
+                      </Typography>
+                    )}
+                  </Stack>
+                ))}
+            </Stack>
+          </Box>
+        )}
 
         <Box sx={{ flexGrow: 1 }} />
 
@@ -247,6 +295,26 @@ function RubricEditor({
       ...d,
       criteria: d.criteria.map((c, i) => ({ ...c, weight: base + (i < remainder ? 1 : 0) })),
     }));
+  };
+
+  // สเกลที่เด่นที่สุดในบรรดาช่องที่ผูก — ใช้ตั้งจำนวนระดับตอนสร้างอัตโนมัติ
+  const dominantScale = React.useMemo(() => {
+    const scales = draft.criteria
+      .map((c) => getScorableField(form, c.fieldId)?.scaleMax)
+      .filter((n): n is number => typeof n === 'number');
+    return scales.length ? Math.max(...scales) : 5;
+  }, [draft.criteria, form]);
+
+  const levels = draft.scaleLevels ?? [];
+  const setLevels = (next: RubricLevel[]) => setField('scaleLevels', next.length ? next : undefined);
+  const generateLevels = () => setField('scaleLevels', makeDefaultLevels(dominantScale));
+  // อ้างอิงด้วย index ไม่ใช่คะแนน — เพราะคะแนนแก้ได้และซ้ำ/เป็นทศนิยมได้ (เช่น 1.5)
+  const setLevelAt = (index: number, patch: Partial<RubricLevel>) =>
+    setLevels(levels.map((lv, i) => (i === index ? { ...lv, ...patch } : lv)));
+  const removeLevelAt = (index: number) => setLevels(levels.filter((_, i) => i !== index));
+  const addLevel = () => {
+    const nextScore = levels.length ? Math.max(0, Math.min(...levels.map((l) => l.score)) - 1) : dominantScale;
+    setLevels([...levels, { score: nextScore, label: '', description: '' }]);
   };
 
   const canSave = draft.name.trim() !== '' && draft.criteria.length > 0 && weightOk;
@@ -379,6 +447,70 @@ function RubricEditor({
                   มี {result.unmapped} เกณฑ์ที่ยังไม่ผูกช่อง จะไม่ถูกนำมาคิดคะแนน
                 </Alert>
               )}
+
+              <Divider />
+
+              {/* ความหมายของแต่ละคะแนน — ยืดหยุ่น: จำนวนระดับเท่าไรก็ได้ คะแนนเป็นทศนิยมได้ (เช่น 1.5) */}
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>ความหมายของคะแนน</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    กำหนดกี่ระดับก็ได้ ใส่คะแนนเป็นทศนิยมได้ (เช่น 1.5) — ใช้ร่วมกันทุกเกณฑ์
+                  </Typography>
+                </Box>
+                <Button size="sm" variant="ghost" color={ACCENT.violet} startIcon={AutoAwesomeMotionIcon} onClick={generateLevels}>
+                  สร้างจากสเกล 1–{dominantScale}
+                </Button>
+              </Stack>
+
+              {levels.length === 0 ? (
+                <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 2, py: 2.5, textAlign: 'center', color: 'text.secondary' }}>
+                  <FormatListNumberedIcon sx={{ fontSize: 28, opacity: 0.4 }} />
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    ยังไม่มีคำอธิบายคะแนน — กด “เพิ่มระดับ” หรือ “สร้างจากสเกล” เพื่อเริ่ม
+                  </Typography>
+                </Box>
+              ) : (
+                <Stack spacing={1}>
+                  {levels.map((lv, index) => (
+                    <Stack key={index} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                      <TextField
+                        size="small"
+                        label="คะแนน"
+                        type="number"
+                        value={lv.score}
+                        onChange={(e) => setLevelAt(index, { score: e.target.value === '' ? 0 : Number(e.target.value) })}
+                        slotProps={{ htmlInput: { step: 0.5 } }}
+                        sx={{ width: 84, flexShrink: 0 }}
+                      />
+                      <TextField
+                        size="small"
+                        label="ระดับ"
+                        value={lv.label}
+                        onChange={(e) => setLevelAt(index, { label: e.target.value })}
+                        placeholder="เช่น ดีเยี่ยม"
+                        sx={{ width: { xs: '38%', sm: 140 }, flexShrink: 0 }}
+                      />
+                      <TextField
+                        size="small"
+                        fullWidth
+                        label="คำอธิบาย"
+                        value={lv.description ?? ''}
+                        onChange={(e) => setLevelAt(index, { description: e.target.value })}
+                        placeholder="เช่น ครบถ้วน โดดเด่นเกินความคาดหมาย"
+                      />
+                      <Tooltip title="ลบระดับ">
+                        <Button variant="ghost" color={ACCENT.pink} iconOnly onClick={() => removeLevelAt(index)}>
+                          <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                        </Button>
+                      </Tooltip>
+                    </Stack>
+                  ))}
+                  <Button variant="ghost" color={ACCENT.violet} size="sm" startIcon={AddIcon} onClick={addLevel} style={{ alignSelf: 'flex-start' }}>
+                    เพิ่มระดับ
+                  </Button>
+                </Stack>
+              )}
             </Stack>
           </Grid>
 
@@ -401,13 +533,20 @@ function RubricEditor({
                 <Stack spacing={2.5}>
                   {(form?.scorableFields ?? []).map((f) => {
                     const usedBy = draft.criteria.filter((c) => c.fieldId === f.id);
+                    // เลือกระดับที่คะแนนไม่เกินค่าปัจจุบัน (ระดับสูงสุดที่ผ่าน) — รองรับทศนิยม/สเกลใดก็ได้
+                    const level = [...levels]
+                      .sort((a, b) => b.score - a.score)
+                      .find((lv) => (sample[f.id] ?? 0) >= lv.score);
                     return (
                       <Box key={f.id} sx={{ opacity: usedBy.length ? 1 : 0.5 }}>
-                        <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: '70%' }}>{f.label}</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                            {sample[f.id] ?? 0}<Box component="span" sx={{ color: 'text.disabled' }}>/{f.scaleMax}</Box>
-                          </Typography>
+                        <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5, alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2" noWrap sx={{ minWidth: 0, flexGrow: 1 }}>{f.label}</Typography>
+                          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexShrink: 0 }}>
+                            {level && <Chip size="sm" variant="soft" color={ACCENT.violet} label={level.label} />}
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                              {sample[f.id] ?? 0}<Box component="span" sx={{ color: 'text.disabled' }}>/{f.scaleMax}</Box>
+                            </Typography>
+                          </Stack>
                         </Stack>
                         <Slider
                           size="small"

@@ -169,7 +169,7 @@ function SubjectFormDialog({
   );
 }
 
-export default function SubjectsPage() {
+export default function CoursesPage() {
   const [subjects, setSubjects] = React.useState<Subject[]>(SUBJECTS);
   const [search, setSearch] = React.useState('');
   const [dept, setDept] = React.useState('all');
